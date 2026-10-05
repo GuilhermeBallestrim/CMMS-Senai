@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% set active_page='solicitacoes' %}{% block title %}Nova solicitação · SENAI CMMS{% endblock
+%}{% block breadcrumb %}<a href="/solicitacoes">Solicitações</a> / Nova{% endblock %}{% block content %}<div
+    class="page-heading">
+    <div>
+        <div class="eyebrow">SUPRIMENTOS</div>
+        <h1>Nova solicitação de compra</h1>
+        <p>Informe os itens necessários para sua área.</p>
+    </div>
+</div>
+<form action="/solicitacoes" method="post" class="form-layout">
+    <section class="panel form-panel">
+        <div class="form-section">
+            <h2>Dados da solicitação</h2>
+            <div class="form-grid">
+                <div class="field"><label for="tipo">Tipo <em>*</em></label><select id="tipo" name="tipo" required>
+                        <option value="">Selecione</option>
+                        <option>Novas máquinas</option>
+                        <option>Ferramentas</option>
+                        <option>Peças e componentes</option>
+                    </select></div>
+                <div class="field"><label for="quantidade">Quantidade <em>*</em></label><input id="quantidade"
+                        name="quantidade" type="number" min="1" value="1" required></div>
+                <div class="field field--full"><label for="item">Item <em>*</em></label><input id="item" name="item"
+                        placeholder="Nome ou descrição do item" required></div>
+                <div class="field field--full"><label for="justificativa">Justificativa <em>*</em></label><textarea
+                        id="justificativa" name="justificativa" rows="5"
+                        placeholder="Explique a necessidade da compra e sua aplicação..." required></textarea></div>
+            </div>
+        </div>
+        <div class="form-actions"><a class="button button--secondary" href="/solicitacoes">Cancelar</a><button
+                class="button button--primary" type="submit">Solicitar →</button></div>
+    </section>
+    <aside class="panel form-aside"><span class="form-aside__icon">ⓘ</span>
+        <h3>Fluxo de aprovação</h3>
+        <p>Sua solicitação será encaminhada ao supervisor para avaliação. Você receberá uma notificação quando houver
+            atualização.</p>
+    </aside>
+</form>{% endblock %}

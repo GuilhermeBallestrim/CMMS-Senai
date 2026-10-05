@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% set active_page='ordens' %}{% block title %}Ordens de Serviço · SENAI CMMS{% endblock %}{%
+block breadcrumb %}Ordens de Serviço{% endblock %}{% block content %}<div class="page-heading">
+    <div>
+        <div class="eyebrow">EXECUÇÃO</div>
+        <h1>Ordens de Serviço</h1>
+        <p>Acompanhe os atendimentos gerados a partir dos chamados.</p>
+    </div>
+</div>
+<section class="metrics metrics--small">{% for a,b in [('Total este mês','42'),('Aguardando início','08'),('Em
+    execução','11'),('Concluídas','23')] %}<article class="metric-card metric-card--small"><span>{{ a }}</span><strong
+            class="metric-card__value">{{ b }}</strong></article>{% endfor %}</section>
+<section class="panel panel--table">
+    <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
+                placeholder="Buscar número da OS ou equipamento..." data-table-search></label>
+        <div class="toolbar__filters"><select class="select">
+                <option>Todos os status</option>
+                <option>Aguardando início</option>
+                <option>Em execução</option>
+                <option>Aguardando peça</option>
+                <option>Concluída</option>
+            </select><select class="select">
+                <option>Todos os técnicos</option>
+                <option>Rafael Mendes</option>
+                <option>Lucas Almeida</option>
+            </select></div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>NÚMERO DA OS</th>
+                    <th>CHAMADO</th>
+                    <th>EQUIPAMENTO</th>
+                    <th>TÉCNICO</th>
+                    <th>ABERTURA</th>
+                    <th>STATUS</th>
+                </tr>
+            </thead>
+            <tbody>{% for n,ch,e,t,d,s,c in [('#OS-2025-056','#CH-2025-083','Injetora 01','Rafael Mendes','20 out
+                2025','Em execução','status--orange'),('#OS-2025-055','#CH-2025-084','Torno CNC 01','Lucas Almeida','20
+                out 2025','Aguardando início','status--blue'),('#OS-2025-054','#CH-2025-078','Serra Fita','Camila
+                Rocha','18 out 2025','Aguardando
+                peça','status--yellow'),('#OS-2025-053','#CH-2025-076','Compressor','Rafael Mendes','17 out
+                2025','Concluída','status--green')] %}<tr>
+                    <td><a class="table__id" href="/ordens-servico/detalhe">{{ n }}</a></td>
+                    <td>{{ ch }}</td>
+                    <td>{{ e }}</td>
+                    <td>{{ t }}</td>
+                    <td>{{ d }}</td>
+                    <td><span class="status {{ c }}">{{ s }}</span></td>
+                </tr>{% endfor %}</tbody>
+        </table>
+    </div>
+</section>{% endblock %}

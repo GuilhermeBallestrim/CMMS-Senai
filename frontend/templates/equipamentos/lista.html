@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% set active_page='equipamentos' %}{% block title %}Equipamentos · SENAI CMMS{% endblock %}{%
+block breadcrumb %}Equipamentos{% endblock %}{% block content %}<div class="page-heading">
+    <div>
+        <div class="eyebrow">ATIVOS</div>
+        <h1>Equipamentos</h1>
+        <p>Cadastro e acompanhamento dos ativos da unidade.</p>
+    </div><a class="button button--primary" href="/equipamentos/novo">＋ Novo equipamento</a>
+</div>
+<section class="metrics metrics--small">{% for a,b in [('Total de equipamentos','64'),('Disponíveis','57'),('Em
+    manutenção','05'),('Indisponíveis','02')] %}<article class="metric-card metric-card--small"><span>{{ a
+            }}</span><strong class="metric-card__value">{{ b }}</strong></article>{% endfor %}</section>
+<section class="panel panel--table">
+    <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
+                placeholder="Buscar equipamento ou patrimônio..." data-table-search></label>
+        <div class="toolbar__filters"><select class="select">
+                <option>Todos os setores</option>
+                <option>Usinagem</option>
+                <option>Plástico</option>
+                <option>Utilidades</option>
+            </select><select class="select">
+                <option>Todos os estados</option>
+                <option>Disponível</option>
+                <option>Em manutenção</option>
+                <option>Indisponível</option>
+            </select></div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>EQUIPAMENTO</th>
+                    <th>SETOR</th>
+                    <th>MODELO</th>
+                    <th>PATRIMÔNIO</th>
+                    <th>ESTADO</th>
+                    <th>ÚLTIMA MANUTENÇÃO</th>
+                </tr>
+            </thead>
+            <tbody>{% for n,s,m,p,e,d,c in [('Torno CNC 01','Usinagem','CNC Romi Centur 30','USI-001','Em
+                manutenção','12 out 2025','status--orange'),('Injetora 01','Plástico','Haitian
+                MA1200','PLA-001','Indisponível','08 out 2025','status--red'),('Compressor','Utilidades','Atlas Copco GA
+                15','UTI-001','Disponível','03 out 2025','status--green'),('Furadeira 02','Marcenaria','Schulz FSB
+                16','MAR-002','Disponível','28 set 2025','status--green'),('Serra Fita','Usinagem','Starrett
+                S2510','USI-008','Em manutenção','22 set 2025','status--orange'),('Fresa CNC','Usinagem','FANUC
+                Robodrill','USI-004','Disponível','19 set 2025','status--green')] %}<tr>
+                    <td><a class="table__id" href="/equipamentos/detalhe">{{ n }}</a></td>
+                    <td>{{ s }}</td>
+                    <td>{{ m }}</td>
+                    <td>{{ p }}</td>
+                    <td><span class="status {{ c }}">{{ e }}</span></td>
+                    <td>{{ d }}</td>
+                </tr>{% endfor %}</tbody>
+        </table>
+    </div>
+    <div class="table-footer"><span>Exibindo <b>6</b> de <b>64</b> equipamentos</span>
+        <div class="pagination"><button>‹</button><button
+                class="pagination__active">1</button><button>2</button><button>3</button><span>…</span><button>11</button><button>›</button>
+        </div>
+    </div>
+</section>{% endblock %}

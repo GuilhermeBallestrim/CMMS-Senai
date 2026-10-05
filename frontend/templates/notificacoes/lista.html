@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block title %}Notificações · SENAI CMMS{% endblock %}{% block breadcrumb %}Notificações{%
+endblock %}{% block content %}<div class="page-heading">
+    <div>
+        <div class="eyebrow">CENTRAL DE AVISOS</div>
+        <h1>Notificações</h1>
+        <p>Atualizações importantes sobre sua operação.</p>
+    </div><button class="text-link" data-action="Notificações marcadas como lidas">Marcar todas como lidas</button>
+</div>
+<section class="panel notification-list">
+    <article><i class="notification-dot notification-dot--red"></i>
+        <div><strong>Novo chamado crítico</strong>
+            <p>Injetora 01 — Vazamento no sistema hidráulico</p><small>Hoje às 08:15 · Chamado #CH-2025-083</small>
+        </div><a href="/chamados/detalhe">Ver chamado →</a>
+    </article>
+    <article><i class="notification-dot notification-dot--blue"></i>
+        <div><strong>Ordem de serviço atribuída</strong>
+            <p>OS-2025-056 foi atribuída a Rafael Mendes</p><small>Hoje às 08:20</small>
+        </div><a href="/ordens-servico/detalhe">Ver OS →</a>
+    </article>
+    <article><i class="notification-dot notification-dot--orange"></i>
+        <div><strong>Preventiva próxima</strong>
+            <p>Compressor — manutenção preventiva em 3 dias</p><small>Ontem às 16:00</small>
+        </div><a href="/equipamentos/detalhe">Ver equipamento →</a>
+    </article>
+    <article><i class="notification-dot notification-dot--green"></i>
+        <div><strong>Chamado concluído</strong>
+            <p>Furadeira 02 — Mandril não fixa a broca</p><small>Ontem às 14:12 · Chamado #CH-2025-081</small>
+        </div><a href="/chamados/detalhe">Ver chamado →</a>
+    </article>
+</section>{% endblock %}

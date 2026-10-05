@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% set active_page='configuracoes' %}{% block title %}Configurações · SENAI CMMS{% endblock
+%}{% block breadcrumb %}Configurações{% endblock %}{% block content %}<div class="page-heading">
+    <div>
+        <div class="eyebrow">SISTEMA</div>
+        <h1>Configurações</h1>
+        <p>Gerencie usuários, setores e preferências da unidade.</p>
+    </div>
+</div>
+<nav class="tabs" role="tablist"><button class="tabs__item tabs__item--active" role="tab"
+        data-tab="usuarios">Usuários</button><button class="tabs__item" role="tab"
+        data-tab="setores">Setores</button><button class="tabs__item" role="tab" data-tab="sistema">Sistema</button>
+</nav>
+<section class="tab-panel" data-panel="usuarios">
+    <div class="panel panel--table">
+        <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
+                    placeholder="Buscar usuário..." data-table-search></label><button class="button button--primary"
+                data-action="Formulário de usuário aberto">＋ Novo usuário</button></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>NOME</th>
+                        <th>E-MAIL</th>
+                        <th>SETOR</th>
+                        <th>PERFIL</th>
+                        <th>STATUS</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>{% for n,e,s,p in [('Marina Costa','marina.costa@senai.br','Administração','Supervisor'),('Rafael
+                    Mendes','rafael.mendes@senai.br','Plástico','Técnico'),('Lucas
+                    Almeida','lucas.almeida@senai.br','Usinagem','Técnico'),('João
+                    Ferreira','joao.ferreira@senai.br','Usinagem','Solicitante')] %}<tr>
+                        <td><strong>{{ n }}</strong></td>
+                        <td>{{ e }}</td>
+                        <td>{{ s }}</td>
+                        <td>{{ p }}</td>
+                        <td><span class="status status--green">Ativo</span></td>
+                        <td><button class="icon-button" data-action="Opções do usuário">···</button></td>
+                    </tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</section>
+<section class="tab-panel" data-panel="setores" hidden>
+    <div class="panel">
+        <div class="panel__heading">
+            <div>
+                <h2>Setores da unidade</h2>
+                <p>Setores associados a equipamentos e usuários.</p>
+            </div><button class="button button--primary" data-action="Formulário de setor aberto">＋ Novo setor</button>
+        </div>
+        <div class="chip-list"><span>Usinagem <b>18 equipamentos</b></span><span>Plástico <b>12
+                    equipamentos</b></span><span>Utilidades <b>9 equipamentos</b></span><span>Marcenaria <b>14
+                    equipamentos</b></span></div>
+    </div>
+</section>
+<section class="tab-panel" data-panel="sistema" hidden>
+    <div class="panel detail-panel">
+        <h2>Preferências da unidade</h2>
+        <div class="form-grid">
+            <div class="field"><label>Nome da unidade</label><input value="SENAI — São Paulo"></div>
+            <div class="field"><label>Fuso horário</label><select>
+                    <option>America/Sao_Paulo (UTC−03:00)</option>
+                </select></div>
+            <div class="field field--full"><label>Notificações</label><label class="check"><input type="checkbox"
+                        checked> Notificar supervisores sobre novos chamados</label></div>
+        </div>
+        <div class="form-actions"><button class="button button--primary" data-action="Preferências salvas">Salvar
+                preferências</button></div>
+    </div>
+</section>{% endblock %}

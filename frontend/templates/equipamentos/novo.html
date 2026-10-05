@@ -1,0 +1,54 @@
+{% extends "base.html" %}{% set active_page='equipamentos' %}{% block title %}Novo equipamento · SENAI CMMS{% endblock
+%}{% block breadcrumb %}<a href="/equipamentos">Equipamentos</a> / Novo equipamento{% endblock %}{% block content %}<div
+    class="page-heading">
+    <div>
+        <div class="eyebrow">ATIVOS · CADASTRO</div>
+        <h1>Novo equipamento</h1>
+        <p>Cadastre um ativo para acompanhar sua manutenção.</p>
+    </div>
+</div>
+<form action="/equipamentos" method="post" enctype="multipart/form-data" class="form-layout">
+    <section class="panel form-panel">
+        <div class="form-section">
+            <h2>Informações do equipamento</h2>
+            <p>Campos marcados com * são obrigatórios.</p>
+            <div class="form-grid">
+                <div class="field"><label for="nome">Nome do equipamento <em>*</em></label><input id="nome" name="nome"
+                        placeholder="Ex.: Torno CNC 01" required></div>
+                <div class="field"><label for="setor">Setor <em>*</em></label><select id="setor" name="setor_id"
+                        required>
+                        <option value="">Selecione o setor</option>
+                        <option>Usinagem</option>
+                        <option>Plástico</option>
+                        <option>Utilidades</option>
+                        <option>Marcenaria</option>
+                    </select></div>
+                <div class="field"><label for="modelo">Modelo</label><input id="modelo" name="modelo"
+                        placeholder="Fabricante e modelo"></div>
+                <div class="field"><label for="patrimonio">Número de série / patrimônio <em>*</em></label><input
+                        id="patrimonio" name="patrimonio" required></div>
+                <div class="field"><label for="aquisicao">Data de aquisição</label><input id="aquisicao"
+                        name="data_aquisicao" type="date"></div>
+                <div class="field"><label for="responsavel">Responsável</label><select id="responsavel"
+                        name="responsavel_id">
+                        <option value="">Selecione um responsável</option>
+                        <option>Lucas Almeida</option>
+                        <option>Rafael Mendes</option>
+                    </select></div>
+                <div class="field"><label for="estado">Estado atual <em>*</em></label><select id="estado" name="estado"
+                        required>
+                        <option>Disponível</option>
+                        <option>Em manutenção</option>
+                        <option>Indisponível</option>
+                    </select></div>
+                <div class="field"><label for="foto">Foto do equipamento</label><input class="file-input" id="foto"
+                        name="foto" type="file" accept="image/*"></div>
+                <div class="field field--full"><label for="manual">Manual técnico <span>(PDF
+                            opcional)</span></label><input class="file-input" id="manual" name="manual" type="file"
+                        accept="application/pdf"></div>
+            </div>
+        </div>
+        <div class="form-actions"><a class="button button--secondary" href="/equipamentos">Cancelar</a><button
+                class="button button--primary" type="submit">Salvar equipamento</button></div>
+    </section>
+</form>{% endblock %}

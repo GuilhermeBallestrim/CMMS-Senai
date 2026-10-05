@@ -1,0 +1,128 @@
+{% extends "base.html" %}{% set active_page = 'dashboard' %}{% block title %}Dashboard · SENAI CMMS{% endblock %}{%
+block breadcrumb %}Dashboard{% endblock %}{% block content %}
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">SEGUNDA-FEIRA, 20 DE OUTUBRO DE 2025</div>
+        <h1>Dashboard</h1>
+        <p>Acompanhe a operação de manutenção da sua unidade.</p>
+    </div>
+    <div class="page-heading__actions"><button class="button button--secondary" data-action="Exportação iniciada">↓
+            <span>Exportar relatório</span></button><a class="button button--primary" href="/chamados/novo">＋ <span>Novo
+                chamado</span></a></div>
+</div>
+<section class="metrics" aria-label="Indicadores principais">
+    {% for label,value,change,icon,tone in [('Chamados abertos','24','+12% vs. mês anterior','▤','red'),('Em
+    análise','08','03 aguardando triagem','◷','blue'),('Concluídos no mês','86','+8% vs. mês
+    anterior','✓','green'),('Equipamentos críticos','03','02 em manutenção','⚠','orange')] %}<article
+        class="metric-card">
+        <div class="metric-card__top"><span>{{ label }}</span><span
+                class="metric-card__icon metric-card__icon--{{ tone }}">{{ icon }}</span></div><strong
+            class="metric-card__value">{{ value }}</strong><small class="metric-card__note">{{ change }}</small>
+    </article>{% endfor %}
+</section>
+<section class="dashboard-grid">
+    <article class="panel panel--chart">
+        <div class="panel__heading">
+            <div>
+                <h2>Backlog de manutenção</h2>
+                <p>Ordens pendentes por semana</p>
+            </div><select class="select select--compact" aria-label="Período do gráfico">
+                <option>Últimos 30 dias</option>
+                <option>Últimos 90 dias</option>
+            </select>
+        </div>
+        <div class="chart">
+            <div class="chart__y"><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div>
+            <div class="chart__area">
+                <div class="chart__grid"><i></i><i></i><i></i><i></i><i></i></div><svg viewBox="0 0 640 190"
+                    preserveAspectRatio="none" role="img"
+                    aria-label="Backlog cai de 32 para 18 ordens nas últimas semanas">
+                    <defs>
+                        <linearGradient id="fill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0" stop-color="#e30613" stop-opacity=".14" />
+                            <stop offset="1" stop-color="#e30613" stop-opacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <path
+                        d="M0 48 C60 55 75 86 128 76 S203 96 256 89 S329 120 384 112 S447 129 512 120 S585 149 640 139 V190 H0Z"
+                        fill="url(#fill)" />
+                    <path
+                        d="M0 48 C60 55 75 86 128 76 S203 96 256 89 S329 120 384 112 S447 129 512 120 S585 149 640 139"
+                        fill="none" stroke="#e30613" stroke-width="3" vector-effect="non-scaling-stroke" />
+                </svg>
+                <div class="chart__x"><span>22 set</span><span>29 set</span><span>06 out</span><span>13
+                        out</span><span>20 out</span></div>
+            </div>
+        </div>
+    </article>
+    <article class="panel">
+        <div class="panel__heading">
+            <div>
+                <h2>Chamados por prioridade</h2>
+                <p>Distribuição atual</p>
+            </div><button class="icon-button" aria-label="Mais opções">···</button>
+        </div>
+        <div class="priority-chart">
+            <div class="donut">
+                <div><strong>24</strong><small>chamados</small></div>
+            </div>
+            <ul class="legend">
+                <li><i class="legend__dot legend__dot--critical"></i>Crítica <b>3</b></li>
+                <li><i class="legend__dot legend__dot--high"></i>Alta <b>7</b></li>
+                <li><i class="legend__dot legend__dot--medium"></i>Média <b>9</b></li>
+                <li><i class="legend__dot legend__dot--low"></i>Baixa <b>5</b></li>
+            </ul>
+        </div>
+    </article>
+    <article class="panel panel--wide">
+        <div class="panel__heading">
+            <div>
+                <h2>Chamados recentes</h2>
+                <p>Últimas solicitações registradas</p>
+            </div><a class="text-link" href="/chamados">Ver todos →</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>CHAMADO</th>
+                        <th>EQUIPAMENTO</th>
+                        <th>PROBLEMA</th>
+                        <th>PRIORIDADE</th>
+                        <th>STATUS</th>
+                        <th>DATA</th>
+                    </tr>
+                </thead>
+                <tbody>{% for id,equip,problem,priority,status,date,cls in [('#CH-2025-084','Torno CNC 01','Vibração
+                    excessiva no eixo','Alta','Em análise','Hoje, 09:42','status--blue'),('#CH-2025-083','Injetora
+                    01','Vazamento no sistema hidráulico','Crítica','Em manutenção','Hoje,
+                    08:15','status--orange'),('#CH-2025-082','Compressor','Ruído anormal durante
+                    operação','Média','Aberto','Ontem, 16:30','status--gray'),('#CH-2025-081','Furadeira 02','Mandril
+                    não fixa a broca','Baixa','Concluído','Ontem, 14:12','status--green')] %}<tr>
+                        <td><a href="/chamados/detalhe" class="table__id">{{ id }}</a></td>
+                        <td>{{ equip }}</td>
+                        <td>{{ problem }}</td>
+                        <td><span class="priority priority--{{ priority|lower }}">{{ priority }}</span></td>
+                        <td><span class="status {{ cls }}">{{ status }}</span></td>
+                        <td>{{ date }}</td>
+                    </tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </article>
+    <article class="panel panel--side">
+        <div class="panel__heading">
+            <div>
+                <h2>OS em andamento</h2>
+                <p>Atendimentos ativos</p>
+            </div><a class="text-link" href="/ordens-servico">Ver todas →</a>
+        </div>{% for n,equip,tech,pct in [('#OS-2025-056','Injetora 01','Rafael Mendes',68),('#OS-2025-055','Torno CNC
+        01','Lucas Almeida',35),('#OS-2025-054','Serra Fita','Camila Rocha',82)] %}<div class="work-order">
+            <div class="work-order__head"><a href="/ordens-servico/detalhe">{{ n }}</a><span>{{ pct }}%</span></div>
+            <strong>{{ equip }}</strong><small>{{ tech }}</small>
+            <div class="progress"><i style="width: {{ pct }}%;">
+                
+            </i>
+            </div>
+        </div>{% endfor %}
+    </article>
+</section>{% endblock %}

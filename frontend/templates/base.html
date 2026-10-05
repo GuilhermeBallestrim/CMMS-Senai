@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SENAI CMMS — Sistema de Gestão de Manutenção">
+  <title>{% block title %}SENAI CMMS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/responsive.css">
+</head>
+
+<body class="app">
+  <a class="app__skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <aside class="sidebar" id="sidebar" aria-label="Navegação principal">
+    <a class="brand" href="/dashboard" aria-label="SENAI CMMS, início"><span class="brand__mark">S</span><span
+        class="brand__text"><strong>SENAI <b>CMMS</b></strong><small>Gestão de manutenção</small></span></a>
+    <div class="sidebar__label">MENU PRINCIPAL</div>
+    <nav class="sidebar__nav">
+      {% set active = active_page|default('dashboard') %}
+      <a class="nav-link {{ 'nav-link--active' if active == 'dashboard' else '' }}" href="/dashboard"><span
+          class="icon">⌂</span>Dashboard</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'chamados' else '' }}" href="/chamados"><span
+          class="icon">▤</span>Chamados <span class="nav-link__count">8</span></a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'equipamentos' else '' }}" href="/equipamentos"><span
+          class="icon">▦</span>Equipamentos</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'ordens' else '' }}" href="/ordens-servico"><span
+          class="icon">☷</span>Ordens de Serviço</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'historico' else '' }}" href="/historico"><span
+          class="icon">◷</span>Histórico</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'solicitacoes' else '' }}" href="/solicitacoes"><span
+          class="icon">▧</span>Solicitações de Compra</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'indicadores' else '' }}" href="/indicadores"><span
+          class="icon">▥</span>Indicadores</a>
+    </nav>
+    <div class="sidebar__bottom">
+      <div class="sidebar__label">SISTEMA</div><a
+        class="nav-link {{ 'nav-link--active' if active == 'configuracoes' else '' }}" href="/configuracoes"><span
+          class="icon">⚙</span>Configurações</a>
+      <div class="sidebar__help"><span class="sidebar__help-icon">?</span><span><strong>Precisa de
+            ajuda?</strong><small>Consulte o suporte técnico</small></span><a href="mailto:suporte@senai.br"
+          aria-label="Enviar e-mail ao suporte">↗</a></div>
+    </div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><button class="topbar__menu icon-button" data-menu-toggle
+        aria-label="Abrir navegação">☰</button>
+      <div class="topbar__crumb">SENAI CMMS <span>/</span> {% block breadcrumb %}Visão geral{% endblock %}</div>
+      <div class="topbar__actions"><button class="icon-button topbar__search" aria-label="Buscar">⌕</button><a
+          class="icon-button topbar__notification" href="/notificacoes"
+          aria-label="Notificações, 3 novas">♧<i></i></a><span class="topbar__divider"></span><button class="profile"
+          aria-label="Menu do perfil"><span class="profile__avatar">MC</span><span class="profile__info"><strong>Marina
+              Costa</strong><small>Supervisora</small></span><span class="profile__chevron">⌄</span></button></div>
+    </header>
+    <main class="content" id="conteudo">{% block content %}{% endblock %}<footer class="footer"><span>© 2025 SENAI CMMS
+          · Protótipo visual</span><span>Unidade SENAI — São Paulo</span></footer>
+    </main>
+  </div>
+  <div class="toast" role="status" aria-live="polite" data-toast data-notice="{{ notice|default('') }}"></div>
+  <script src="/static/js/app.js" defer></script>
+</body>
+
+</html>

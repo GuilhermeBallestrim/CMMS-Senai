@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% set active_page='chamados' %}{% block title %}Novo chamado · SENAI CMMS{% endblock %}{%
+block breadcrumb %}<a href="/chamados">Chamados</a> / Novo chamado{% endblock %}{% block content %}<div
+    class="page-heading">
+    <div>
+        <div class="eyebrow">MANUTENÇÃO · SOLICITAÇÃO</div>
+        <h1>Novo chamado</h1>
+        <p>Descreva o problema para que nossa equipe possa atender.</p>
+    </div>
+</div>
+<form action="/chamados" method="post" enctype="multipart/form-data" class="form-layout">
+    <section class="panel form-panel">
+        <div class="form-section">
+            <h2>Detalhes do problema</h2>
+            <p>Informe o equipamento e descreva o que está acontecendo.</p>
+            <div class="form-grid">
+                <div class="field field--full"><label for="equipamento">Equipamento <em>*</em></label><select
+                        id="equipamento" name="equipamento_id" required>
+                        <option value="">Selecione o equipamento</option>
+                        <option>Torno CNC 01 · USI-001</option>
+                        <option>Injetora 01 · PLA-001</option>
+                        <option>Compressor · UTI-001</option>
+                        <option>Furadeira 02 · MAR-002</option>
+                    </select></div>
+                <div class="field field--full"><label for="descricao">Descrição do problema <em>*</em></label><textarea
+                        id="descricao" name="descricao" rows="5"
+                        placeholder="Descreva o problema, quando começou e qualquer detalhe relevante..."
+                        required></textarea><small>Seja específico para agilizar o diagnóstico.</small></div>
+                <div class="field"><label for="prioridade">Prioridade <em>*</em></label><select id="prioridade"
+                        name="prioridade" required>
+                        <option value="">Selecione a prioridade</option>
+                        <option>Baixa</option>
+                        <option>Média</option>
+                        <option>Alta</option>
+                        <option>Crítica</option>
+                    </select></div>
+                <div class="field"><label for="data">Data da solicitação</label><input id="data" name="data_solicitacao"
+                        type="date" value="2025-10-20"></div>
+                <div class="field field--full"><label for="foto">Foto do equipamento
+                        <span>(opcional)</span></label><input class="file-input" id="foto" name="foto" type="file"
+                        accept="image/*"><small>PNG ou JPG · máximo 10 MB</small></div>
+            </div>
+        </div>
+        <div class="form-actions"><a class="button button--secondary" href="/chamados">Cancelar</a><button
+                class="button button--primary" type="submit">Abrir chamado <span>→</span></button></div>
+    </section>
+    <aside class="panel form-aside"><span class="form-aside__icon">ⓘ</span>
+        <h3>O que acontece depois?</h3>
+        <p>Seu chamado será encaminhado para a equipe de manutenção. Você poderá acompanhar cada etapa pelo sistema.</p>
+        <ol class="steps">
+            <li><i>1</i><span>Chamado registrado</span></li>
+            <li><i>2</i><span>Triagem da equipe</span></li>
+            <li><i>3</i><span>Atendimento técnico</span></li>
+        </ol>
+    </aside>
+</form>{% endblock %}

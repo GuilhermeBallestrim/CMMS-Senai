@@ -1,0 +1,277 @@
+@media(max-width:1150px) {
+    .sidebar {
+        width: 220px
+    }
+
+    .workspace {
+        margin-left: 220px
+    }
+
+    .dashboard-grid {
+        grid-template-columns: minmax(0, 1.3fr) minmax(270px, 1fr)
+    }
+
+    .content {
+        padding-left: 23px;
+        padding-right: 23px
+    }
+
+    .topbar {
+        padding: 0 23px
+    }
+
+    .metrics {
+        gap: 10px
+    }
+
+    .metric-card {
+        padding: 13px
+    }
+
+    .toolbar {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .search-field {
+        width: 100%;
+        max-width: 440px
+    }
+
+    .toolbar__filters {
+        flex-wrap: wrap
+    }
+
+    .metrics--small {
+        grid-template-columns: repeat(4, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:850px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        box-shadow: 0 8px 25px #0002
+    }
+
+    .sidebar--open {
+        transform: translateX(0)
+    }
+
+    .workspace {
+        margin-left: 0
+    }
+
+    .topbar {
+        padding: 0 18px
+    }
+
+    .topbar__menu {
+        display: inline-grid;
+        margin-right: 8px
+    }
+
+    .topbar__crumb {
+        margin-right: auto
+    }
+
+    .topbar__actions {
+        gap: 8px
+    }
+
+    .content {
+        padding: 23px 18px 0
+    }
+
+    .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr
+    }
+
+    .panel--wide,
+    .panel--side {
+        grid-column: 1;
+        grid-row: auto
+    }
+
+    .detail-grid,
+    .form-layout {
+        grid-template-columns: 1fr
+    }
+
+    .detail-side {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .form-aside {
+        display: none
+    }
+
+    .metrics--small {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .login {
+        grid-template-columns: 1fr
+    }
+
+    .login__visual {
+        display: none
+    }
+
+    .login__card {
+        padding: 35px 0
+    }
+
+    .brand--login {
+        margin-bottom: 42px
+    }
+}
+
+@media(max-width:560px) {
+    h1 {
+        font-size: 24px
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .page-heading__actions {
+        width: 100%;
+        flex-wrap: wrap
+    }
+
+    .page-heading__actions .button {
+        flex: 1
+    }
+
+    .profile__info,
+    .profile__chevron,
+    .topbar__search,
+    .topbar__divider {
+        display: none
+    }
+
+    .topbar {
+        height: 58px;
+        padding: 0 12px
+    }
+
+    .topbar__crumb {
+        font-size: 10px
+    }
+
+    .topbar__actions {
+        gap: 3px
+    }
+
+    .content {
+        padding: 20px 12px 0
+    }
+
+    .panel {
+        padding: 14px
+    }
+
+    .metric-card {
+        min-height: 108px
+    }
+
+    .metric-card__value {
+        font-size: 23px
+    }
+
+    .metrics--small .metric-card--small {
+        min-height: 70px
+    }
+
+    .toolbar__filters {
+        width: 100%
+    }
+
+    .toolbar__filters .select {
+        flex: 1;
+        min-width: 120px
+    }
+
+    .table-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 0
+    }
+
+    .pagination {
+        align-self: flex-end
+    }
+
+    .detail-facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 10px
+    }
+
+    .detail-side {
+        grid-template-columns: 1fr
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr
+    }
+
+    .field--full {
+        grid-column: auto
+    }
+
+    .form-section {
+        padding: 17px
+    }
+
+    .form-actions {
+        padding: 13px 17px
+    }
+
+    .tabs {
+        gap: 16px;
+        overflow-x: auto
+    }
+
+    .tabs__item {
+        white-space: nowrap
+    }
+
+    .footer {
+        font-size: 8px;
+        gap: 10px
+    }
+
+    .priority-chart {
+        justify-content: space-between
+    }
+
+    .donut {
+        width: 110px;
+        height: 110px
+    }
+
+    .donut:after {
+        width: 74px;
+        height: 74px
+    }
+
+    .notification-list article {
+        flex-wrap: wrap
+    }
+
+    .notification-list article>a {
+        margin-left: 20px
+    }
+
+    .login__card {
+        width: calc(100% - 40px)
+    }
+}

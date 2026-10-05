@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% set active_page='chamados' %}{% block title %}Chamado CH-2025-084 · SENAI CMMS{% endblock
+%}{% block breadcrumb %}<a href="/chamados">Chamados</a> / CH-2025-084{% endblock %}{% block content %}<div
+    class="page-heading">
+    <div>
+        <div class="eyebrow">CHAMADO · <span class="table__id">#CH-2025-084</span></div>
+        <h1>Vibração excessiva no eixo</h1>
+        <p>Aberto por João Ferreira · 20 de outubro de 2025 às 09:42</p>
+    </div>
+    <div class="page-heading__actions"><span class="status status--blue">Em análise</span><button
+            class="button button--secondary" data-action="Opções do chamado">··· <span>Mais ações</span></button></div>
+</div>
+<div class="detail-grid">
+    <div class="detail-main">
+        <section class="panel detail-panel">
+            <div class="panel__heading">
+                <h2>Informações do chamado</h2><button class="text-link" data-action="Edição habilitada">Editar</button>
+            </div>
+            <div class="detail-facts">
+                <div><small>EQUIPAMENTO</small><a href="/equipamentos/detalhe">Torno CNC 01</a></div>
+                <div><small>SETOR</small><strong>Usinagem</strong></div>
+                <div><small>PATRIMÔNIO</small><strong>USI-001</strong></div>
+                <div><small>PRIORIDADE</small><span class="priority priority--alta">Alta</span></div>
+                <div><small>SOLICITANTE</small><strong>João Ferreira</strong></div>
+                <div><small>DATA DA SOLICITAÇÃO</small><strong>20 out 2025, 09:42</strong></div>
+            </div>
+            <div class="detail-description"><small>DESCRIÇÃO DO PROBLEMA</small>
+                <p>O equipamento apresenta vibração excessiva durante a operação, principalmente em rotações acima de
+                    1.500 RPM. O problema começou no início do turno e está afetando a qualidade das peças usinadas.</p>
+            </div>
+        </section>
+        <section class="panel detail-panel">
+            <div class="panel__heading">
+                <div>
+                    <h2>Linha do tempo</h2>
+                    <p>Acompanhe as atualizações deste chamado.</p>
+                </div>
+            </div>
+            <ol class="timeline">
+                <li><i class="timeline__dot timeline__dot--blue"></i>
+                    <div><strong>Chamado em análise</strong><small>Marina Costa iniciou a triagem · Hoje às
+                            10:05</small>
+                        <p>Verificando disponibilidade de técnico especializado.</p>
+                    </div>
+                </li>
+                <li><i class="timeline__dot timeline__dot--red"></i>
+                    <div><strong>Chamado aberto</strong><small>João Ferreira registrou este chamado · Hoje às
+                            09:42</small>
+                        <p>Solicitação criada para Torno CNC 01.</p>
+                    </div>
+                </li>
+            </ol>
+        </section>
+    </div>
+    <aside class="detail-side">
+        <section class="panel">
+            <h2>Ações</h2><button class="button button--primary button--full"
+                data-action="Chamado aprovado e OS gerada">✓ Aprovar e gerar OS</button><button
+                class="button button--secondary button--full" data-action="Técnico atribuído">＋ Atribuir
+                técnico</button><button class="button button--danger button--full"
+                data-action="Chamado cancelado">Cancelar chamado</button>
+        </section>
+        <section class="panel">
+            <h2>Responsável</h2>
+            <div class="person"><span class="profile__avatar">MC</span><span><strong>Marina
+                        Costa</strong><small>Supervisora</small></span></div>
+            <div class="detail-divider"></div><small class="muted">TÉCNICO ATRIBUÍDO</small>
+            <p class="muted">Ainda não atribuído</p>
+        </section>
+    </aside>
+</div>{% endblock %}
