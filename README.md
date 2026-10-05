@@ -1,29 +1,55 @@
 # SENAI CMMS
 
-Protótipo web do sistema de gestão de manutenção industrial. A interface usa Jinja2 e CSS/JavaScript sem frameworks; a aplicação FastAPI serve as páginas e recebe os formulários de demonstração.
+Sistema web de gestão de manutenção industrial. O projeto usa FastAPI, Jinja2 e SQLite local.
 
-## Rodar no Windows
+## Configuração no Windows
 
-Abra o PowerShell nesta pasta do projeto e execute:
+Pré-requisitos: Python 3.12 (ou compatível com as dependências em `requirements.txt`) e espaço livre para instalar os pacotes.
+
+No PowerShell, na pasta do projeto:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Defina `CMMS_SESSION_SECRET` em `.env` com um valor aleatório privado (por exemplo, gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"`). Em seguida crie o primeiro administrador de forma interativa e inicie o servidor:
+
+```powershell
+python -m backend.cli create-admin
 python -m uvicorn main:app --reload
 ```
 
-Depois, abra [http://127.0.0.1:8000](http://127.0.0.1:8000). O endereço `/` abre a tela de login; o envio do formulário de acesso leva ao dashboard.
+Abra [http://127.0.0.1:8000](http://127.0.0.1:8000). O banco `cmms.db` e os setores iniciais são criados automaticamente. Não há credenciais predefinidas; use o e-mail e a senha informados ao criar o administrador.
 
-Se o PowerShell bloquear a ativação do ambiente virtual, use o executável diretamente:
+Se a ativação do ambiente for bloqueada pelo PowerShell, execute diretamente:
 
 ```powershell
-\.venv\Scripts\python.exe -m pip install -r requirements.txt
-\.venv\Scripts\python.exe -m uvicorn main:app --reload
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m backend.cli create-admin
+.\.venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
-## Escopo atual
+## Perfis e permissões
 
-Este backend inicial serve todos os templates, arquivos estáticos e recebe os formulários do protótipo com uma mensagem de confirmação. **Ele não autentica usuários, não grava formulários ou arquivos, não usa banco de dados e não implementa regras de manutenção.** Os dados exibidos ainda são exemplos dos templates. Essas partes precisam ser conectadas em etapas posteriores.
+- **Professor:** consulta equipamentos e setores, abre e acompanha os próprios chamados e solicitações de compra.
+- **Administrador:** pode tudo que o professor pode; além disso, gerencia usuários/equipamentos/setores, aprova chamados e solicitações, atualiza ordens de serviço e consulta histórico/indicadores.
 
-Mais detalhes da organização do front-end estão em [frontend/README.md](frontend/README.md).
+Os papéis aceitos são somente `professor` e `administrator` (apresentado na interface como Administrador). As APIs sob `/api` exigem sessão, aplicam autorização no servidor e protegem alterações com token CSRF. A documentação interativa fica em `/docs`.
+
+## Rotas principais da API
+
+- `GET /api/health`, `/api/auth/csrf`, `/api/auth/me`; `POST /api/auth/login` e `/api/auth/logout`
+- `GET/POST /api/users`, `PATCH /api/users/{id}/active` (administrador)
+- `GET/POST /api/sectors` (criação por administrador)
+- `GET/POST /api/equipment`, `GET /api/equipment/{id}` (criação por administrador)
+- `GET/POST /api/calls`, `GET/PATCH /api/calls/{id}`, `POST /api/calls/{id}/approve`
+- `GET/PATCH /api/work-orders`, `GET /api/work-orders/{id}`
+- `GET/POST /api/purchase-requests`, `PATCH /api/purchase-requests/{id}`
+- `GET /api/history` e `/api/indicators` (indicadores para administrador)
+
+## Observação sobre as telas
+
+O login e os limites de acesso das páginas estão conectados. As rotas API já implementam operações persistentes para os principais recursos; algumas listas e formulários HTML ainda usam conteúdo de protótipo e serão ligados a esses dados na próxima etapa.

@@ -29,13 +29,7 @@
     }
 
     .toolbar {
-        align-items: flex-start;
-        flex-direction: column
-    }
-
-    .search-field {
-        width: 100%;
-        max-width: 440px
+        justify-content: flex-end
     }
 
     .toolbar__filters {
@@ -114,6 +108,9 @@
         grid-template-columns: repeat(2, minmax(0, 1fr))
     }
 
+}
+
+@media(max-width:740px) {
     .login {
         grid-template-columns: 1fr
     }
@@ -123,11 +120,11 @@
     }
 
     .login__card {
-        padding: 35px 0
+        padding: 38px 0
     }
 
     .brand--login {
-        margin-bottom: 42px
+        margin-bottom: 38px
     }
 }
 
@@ -152,7 +149,6 @@
 
     .profile__info,
     .profile__chevron,
-    .topbar__search,
     .topbar__divider {
         display: none
     }

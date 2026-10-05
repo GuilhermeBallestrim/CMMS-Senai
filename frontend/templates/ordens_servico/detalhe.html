@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='ordens' %}{% block title %}OS-2025-056 · SENAI CMMS{% endblock %}{% block
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='ordens' %}{% block title %}OS-2025-056 · SENAI CMMS{% endblock %}{% block
 breadcrumb %}<a href="/ordens-servico">Ordens de Serviço</a> / OS-2025-056{% endblock %}{% block content %}<div
     class="page-heading">
     <div>
@@ -31,7 +31,7 @@ breadcrumb %}<a href="/ordens-servico">Ordens de Serviço</a> / OS-2025-056{% en
             </div>
         </div>
         <div class="form-actions"><a class="button button--secondary" href="/ordens-servico">Voltar</a><button
-                class="button button--primary" type="submit">✓ Finalizar OS</button></div>
+                class="button button--primary" type="submit">{{ ui_icon('check', 16) }} Finalizar OS</button></div>
     </section>
     <aside class="panel form-aside"><span class="status status--orange">Em execução</span>
         <h3>Dados da ordem</h3>

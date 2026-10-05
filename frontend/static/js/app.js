@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = button.parentElement.querySelector('input');
     if (!input) return;
     input.type = input.type === 'password' ? 'text' : 'password';
+    button.closest('.password-field')?.classList.toggle('password-field--visible', input.type === 'text');
     button.setAttribute('aria-label', input.type === 'password' ? 'Mostrar senha' : 'Ocultar senha');
   }));
 
@@ -31,15 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
 
   const filterTable = () => {
-    const query = document.querySelector('[data-table-search]')?.value.trim().toLocaleLowerCase('pt-BR') || '';
     const filters = [...document.querySelectorAll('[data-table-filter]')];
     document.querySelectorAll('[data-filter-table tbody tr], .panel--table tbody tr').forEach((row) => {
-      const queryMatches = row.textContent.toLocaleLowerCase('pt-BR').includes(query);
       const filtersMatch = filters.every((filter) => !filter.value || row.dataset[filter.dataset.tableFilter] === filter.value);
-      row.hidden = !(queryMatches && filtersMatch);
+      row.hidden = !filtersMatch;
     });
   };
-  document.querySelectorAll('[data-table-search], [data-table-filter]').forEach((control) => control.addEventListener('input', filterTable));
   document.querySelectorAll('[data-table-filter]').forEach((control) => control.addEventListener('change', filterTable));
 
 });

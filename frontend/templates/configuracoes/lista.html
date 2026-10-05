@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='configuracoes' %}{% block title %}Configurações · SENAI CMMS{% endblock
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='configuracoes' %}{% block title %}Configurações · SENAI CMMS{% endblock
 %}{% block breadcrumb %}Configurações{% endblock %}{% block content %}<div class="page-heading">
     <div>
         <div class="eyebrow">SISTEMA</div>
@@ -12,9 +12,8 @@
 </nav>
 <section class="tab-panel" data-panel="usuarios">
     <div class="panel panel--table">
-        <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
-                    placeholder="Buscar usuário..." data-table-search></label><button class="button button--primary"
-                data-action="Formulário de usuário aberto">＋ Novo usuário</button></div>
+        <div class="toolbar"><button class="button button--primary"
+                data-action="Formulário de usuário aberto">{{ ui_icon('plus', 16) }} Novo usuário</button></div>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -36,7 +35,7 @@
                         <td>{{ s }}</td>
                         <td>{{ p }}</td>
                         <td><span class="status status--green">Ativo</span></td>
-                        <td><button class="icon-button" data-action="Opções do usuário">···</button></td>
+                        <td><button class="icon-button" data-action="Opções do usuário">{{ ui_icon('more', 17) }}</button></td>
                     </tr>{% endfor %}</tbody>
             </table>
         </div>
@@ -48,7 +47,7 @@
             <div>
                 <h2>Setores da unidade</h2>
                 <p>Setores associados a equipamentos e usuários.</p>
-            </div><button class="button button--primary" data-action="Formulário de setor aberto">＋ Novo setor</button>
+            </div><button class="button button--primary" data-action="Formulário de setor aberto">{{ ui_icon('plus', 16) }} Novo setor</button>
         </div>
         <div class="chip-list"><span>Usinagem <b>18 equipamentos</b></span><span>Plástico <b>12
                     equipamentos</b></span><span>Utilidades <b>9 equipamentos</b></span><span>Marcenaria <b>14

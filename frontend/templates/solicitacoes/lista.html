@@ -1,15 +1,13 @@
-{% extends "base.html" %}{% set active_page='solicitacoes' %}{% block title %}Solicitações de Compra · SENAI CMMS{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='solicitacoes' %}{% block title %}Solicitações de Compra · SENAI CMMS{%
 endblock %}{% block breadcrumb %}Solicitações de Compra{% endblock %}{% block content %}<div class="page-heading">
     <div>
         <div class="eyebrow">SUPRIMENTOS</div>
         <h1>Solicitações de Compra</h1>
         <p>Acompanhe pedidos de máquinas, ferramentas, peças e componentes.</p>
-    </div><a class="button button--primary" href="/solicitacoes/nova">＋ Nova solicitação</a>
+    </div><a class="button button--primary" href="/solicitacoes/nova">{{ ui_icon('plus', 16) }} Nova solicitação</a>
 </div>
 <section class="panel panel--table">
-    <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
-                placeholder="Buscar solicitação ou item..." data-table-search></label>
-        <div class="toolbar__filters"><select class="select">
+    <div class="toolbar"><div class="toolbar__filters"><select class="select">
                 <option>Todos os status</option>
                 <option>Em análise</option>
                 <option>Aprovada</option>

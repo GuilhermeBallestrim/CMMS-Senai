@@ -1,18 +1,16 @@
-{% extends "base.html" %}{% set active_page='equipamentos' %}{% block title %}Equipamentos · SENAI CMMS{% endblock %}{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='equipamentos' %}{% block title %}Equipamentos · SENAI CMMS{% endblock %}{%
 block breadcrumb %}Equipamentos{% endblock %}{% block content %}<div class="page-heading">
     <div>
         <div class="eyebrow">ATIVOS</div>
         <h1>Equipamentos</h1>
         <p>Cadastro e acompanhamento dos ativos da unidade.</p>
-    </div><a class="button button--primary" href="/equipamentos/novo">＋ Novo equipamento</a>
+    </div><a class="button button--primary" href="/equipamentos/novo">{{ ui_icon('plus', 16) }} Novo equipamento</a>
 </div>
 <section class="metrics metrics--small">{% for a,b in [('Total de equipamentos','64'),('Disponíveis','57'),('Em
     manutenção','05'),('Indisponíveis','02')] %}<article class="metric-card metric-card--small"><span>{{ a
             }}</span><strong class="metric-card__value">{{ b }}</strong></article>{% endfor %}</section>
 <section class="panel panel--table">
-    <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
-                placeholder="Buscar equipamento ou patrimônio..." data-table-search></label>
-        <div class="toolbar__filters"><select class="select">
+    <div class="toolbar"><div class="toolbar__filters"><select class="select">
                 <option>Todos os setores</option>
                 <option>Usinagem</option>
                 <option>Plástico</option>

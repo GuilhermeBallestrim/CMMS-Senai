@@ -1,3 +1,4 @@
+{% from "partials/icons.html" import icon as ui_icon %}
 <!doctype html>
 <html lang="pt-BR">
 
@@ -8,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
     <link rel="stylesheet" href="/static/css/components.css">
     <link rel="stylesheet" href="/static/css/responsive.css">
 </head>
@@ -20,15 +22,15 @@
             <h1>Bem-vindo de volta</h1>
             <p>Acesse sua conta para continuar.</p>
         </div>
-        <form action="/login" method="post"><label for="email">Usuário / E-mail</label><input id="email" name="email"
+        <form action="/login" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="email">Usuário / E-mail</label><input id="email" name="email"
                 type="email" autocomplete="username" placeholder="nome@senai.br" required><label
                 for="password">Senha</label>
             <div class="password-field"><input id="password" name="password" type="password"
                     autocomplete="current-password" placeholder="Digite sua senha" required><button type="button"
-                    data-password-toggle aria-label="Mostrar senha">◉</button></div>
+                    data-password-toggle aria-label="Mostrar senha">{{ ui_icon('eye', 18, 'password-toggle__eye-open') }}{{ ui_icon('eye-off', 18, 'password-toggle__eye-closed') }}</button></div>
             <div class="login__options"><label class="check"><input type="checkbox" name="remember"> Manter
                     conectado</label><a href="/recuperar-senha">Esqueceu a senha?</a></div><button
-                class="button button--primary button--full" type="submit">ENTRAR <span>→</span></button>
+                class="button button--primary button--full" type="submit">ENTRAR {{ ui_icon('arrow-right', 17) }}</button>
         </form>
         <p class="login__foot">Acesso restrito a usuários autorizados.<br>© 2025 SENAI CMMS</p>
     </main>

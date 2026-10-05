@@ -1,15 +1,13 @@
-{% extends "base.html" %}{% set active_page='historico' %}{% block title %}Histórico · SENAI CMMS{% endblock %}{% block
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='historico' %}{% block title %}Histórico · SENAI CMMS{% endblock %}{% block
 breadcrumb %}Histórico{% endblock %}{% block content %}<div class="page-heading">
     <div>
         <div class="eyebrow">REGISTROS</div>
         <h1>Histórico de manutenção</h1>
         <p>Consulte as intervenções realizadas nos equipamentos.</p>
-    </div><button class="button button--secondary" data-action="Relatório exportado">↓ Exportar histórico</button>
+    </div><button class="button button--secondary" data-action="Relatório exportado">{{ ui_icon('download', 16) }} Exportar histórico</button>
 </div>
 <section class="panel panel--table">
-    <div class="toolbar"><label class="search-field"><span>⌕</span><input type="search"
-                placeholder="Buscar por equipamento, OS ou serviço..." data-table-search></label>
-        <div class="toolbar__filters"><select class="select">
+    <div class="toolbar"><div class="toolbar__filters"><select class="select">
                 <option>Todos os setores</option>
                 <option>Usinagem</option>
                 <option>Plástico</option>

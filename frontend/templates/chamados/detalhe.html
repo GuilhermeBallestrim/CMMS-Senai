@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='chamados' %}{% block title %}Chamado CH-2025-084 · SENAI CMMS{% endblock
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='chamados' %}{% block title %}Chamado CH-2025-084 · SENAI CMMS{% endblock
 %}{% block breadcrumb %}<a href="/chamados">Chamados</a> / CH-2025-084{% endblock %}{% block content %}<div
     class="page-heading">
     <div>
@@ -7,7 +7,7 @@
         <p>Aberto por João Ferreira · 20 de outubro de 2025 às 09:42</p>
     </div>
     <div class="page-heading__actions"><span class="status status--blue">Em análise</span><button
-            class="button button--secondary" data-action="Opções do chamado">··· <span>Mais ações</span></button></div>
+            class="button button--secondary" data-action="Opções do chamado">{{ ui_icon('more', 17) }} <span>Mais ações</span></button></div>
 </div>
 <div class="detail-grid">
     <div class="detail-main">
@@ -54,8 +54,8 @@
     <aside class="detail-side">
         <section class="panel">
             <h2>Ações</h2><button class="button button--primary button--full"
-                data-action="Chamado aprovado e OS gerada">✓ Aprovar e gerar OS</button><button
-                class="button button--secondary button--full" data-action="Técnico atribuído">＋ Atribuir
+                data-action="Chamado aprovado e OS gerada">{{ ui_icon('check', 16) }} Aprovar e gerar OS</button><button
+                class="button button--secondary button--full" data-action="Técnico atribuído">{{ ui_icon('plus', 16) }} Atribuir
                 técnico</button><button class="button button--danger button--full"
                 data-action="Chamado cancelado">Cancelar chamado</button>
         </section>

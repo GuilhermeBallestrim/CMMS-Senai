@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='chamados' %}{% block title %}Novo chamado · SENAI CMMS{% endblock %}{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='chamados' %}{% block title %}Novo chamado · SENAI CMMS{% endblock %}{%
 block breadcrumb %}<a href="/chamados">Chamados</a> / Novo chamado{% endblock %}{% block content %}<div
     class="page-heading">
     <div>
@@ -41,9 +41,9 @@ block breadcrumb %}<a href="/chamados">Chamados</a> / Novo chamado{% endblock %}
             </div>
         </div>
         <div class="form-actions"><a class="button button--secondary" href="/chamados">Cancelar</a><button
-                class="button button--primary" type="submit">Abrir chamado <span>→</span></button></div>
+                class="button button--primary" type="submit">Abrir chamado <span>{{ ui_icon('arrow-right', 14) }}</span></button></div>
     </section>
-    <aside class="panel form-aside"><span class="form-aside__icon">ⓘ</span>
+    <aside class="panel form-aside"><span class="form-aside__icon">{{ ui_icon('info', 18) }}</span>
         <h3>O que acontece depois?</h3>
         <p>Seu chamado será encaminhado para a equipe de manutenção. Você poderá acompanhar cada etapa pelo sistema.</p>
         <ol class="steps">

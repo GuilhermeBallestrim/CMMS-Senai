@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='indicadores' %}{% block title %}Indicadores · SENAI CMMS{% endblock %}{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='indicadores' %}{% block title %}Indicadores · SENAI CMMS{% endblock %}{%
 block breadcrumb %}Indicadores{% endblock %}{% block content %}<div class="page-heading">
     <div>
         <div class="eyebrow">ANÁLISE GERENCIAL</div>
@@ -19,7 +19,7 @@ block breadcrumb %}Indicadores{% endblock %}{% block content %}<div class="page-
     falhas'),('Disponibilidade','96,8%','+1,2% vs. período anterior'),('Taxa de conclusão','92,4%','+4,6% vs. período
     anterior')] %}<article class="metric-card">
         <div class="metric-card__top"><span>{{ a }}</span><span
-                class="metric-card__icon metric-card__icon--red">↗</span></div><strong class="metric-card__value">{{ b
+                class="metric-card__icon metric-card__icon--red">{{ ui_icon('trend', 17) }}</span></div><strong class="metric-card__value">{{ b
             }}</strong><small class="metric-card__note">{{ c }}</small>
     </article>{% endfor %}</section>
 <section class="dashboard-grid">
@@ -50,7 +50,7 @@ block breadcrumb %}Indicadores{% endblock %}{% block content %}<div class="page-
                 <p>Horas pendentes / capacidade</p>
             </div>
         </div>
-        <div class="backlog"><strong>18,5%</strong><span>↓ 3,2% neste período</span>
+        <div class="backlog"><strong>18,5%</strong><span>{{ ui_icon('trend-down', 16) }} 3,2% neste período</span>
             <div class="progress"><i style="width:18.5%"></i></div><small>185 HH pendentes ÷ 1.000 HH
                 disponíveis</small>
         </div>

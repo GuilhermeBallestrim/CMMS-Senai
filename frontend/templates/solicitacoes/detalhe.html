@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='solicitacoes' %}{% block title %}SC-2025-018 · SENAI CMMS{% endblock %}{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='solicitacoes' %}{% block title %}SC-2025-018 · SENAI CMMS{% endblock %}{%
 block breadcrumb %}<a href="/solicitacoes">Solicitações</a> / SC-2025-018{% endblock %}{% block content %}<div
     class="page-heading">
     <div>
@@ -24,7 +24,7 @@ block breadcrumb %}<a href="/solicitacoes">Solicitações</a> / SC-2025-018{% en
     <aside class="panel detail-side">
         <h2>Aprovação</h2>
         <p class="muted">Revise os dados antes de decidir sobre esta solicitação.</p><button
-            class="button button--primary button--full" data-action="Solicitação aprovada">✓ Aprovar
+            class="button button--primary button--full" data-action="Solicitação aprovada">{{ ui_icon('check', 16) }} Aprovar
             solicitação</button><button class="button button--danger button--full"
             data-action="Solicitação recusada">Recusar solicitação</button>
     </aside>

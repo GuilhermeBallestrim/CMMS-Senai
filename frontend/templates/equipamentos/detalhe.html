@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% set active_page='equipamentos' %}{% block title %}Torno CNC 01 · SENAI CMMS{% endblock %}{%
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='equipamentos' %}{% block title %}Torno CNC 01 · SENAI CMMS{% endblock %}{%
 block breadcrumb %}<a href="/equipamentos">Equipamentos</a> / Torno CNC 01{% endblock %}{% block content %}<div
     class="page-heading">
     <div>
@@ -40,6 +40,6 @@ block breadcrumb %}<a href="/equipamentos">Equipamentos</a> / Torno CNC 01{% end
 <section class="tab-panel" data-panel="manual" hidden>
     <section class="panel document-card"><span>PDF</span>
         <div><strong>Manual técnico — CNC Romi Centur 30</strong><small>Manual_Torno_CNC_01.pdf · 8,4 MB</small></div><a
-            class="button button--secondary" href="#manual">Visualizar ↗</a>
+            class="button button--secondary" href="#manual">Visualizar {{ ui_icon('external', 14) }}</a>
     </section>
 </section>{% endblock %}

@@ -1,0 +1,43 @@
+INFO:     127.0.0.1:49994 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63218 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63218 - "GET /static/css/layout.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52639 - "GET /static/css/components.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50799 - "GET /static/css/base.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55651 - "GET /static/css/responsive.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61603 - "GET /static/js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51302 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51302 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54224 - "GET /static/css/components.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54224 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49539 - "POST /login HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:49539 - "GET /dashboard?notice=Acesso+de+demonstra%C3%A7%C3%A3o+iniciado. HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49539 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:49539 - "GET /static/css/responsive.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50553 - "GET /chamados/novo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50553 - "GET /static/css/components.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54007 - "GET /static/js/app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55110 - "GET /equipamentos HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55110 - "GET /static/css/layout.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53637 - "GET /static/css/responsive.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55110 - "GET /solicitacoes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55110 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55110 - "GET /indicadores HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55110 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55110 - "GET /static/css/components.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49856 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51304 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51304 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:60398 - "GET /static/css/components.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50819 - "GET /static/css/responsive.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50819 - "GET /static/js/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54565 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54565 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:64176 - "GET /static/css/components.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:64176 - "GET /static/js/app.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:64176 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50187 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50187 - "GET /static/css/base.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:54239 - "GET /static/css/layout.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:64280 - "GET /static/css/components.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:61753 - "GET /static/css/responsive.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:61753 - "GET /static/js/app.js HTTP/1.1" 304 Not Modified
