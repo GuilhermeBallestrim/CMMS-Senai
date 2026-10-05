@@ -8,22 +8,23 @@
     </div>
 </div>
 <form action="/solicitacoes" method="post" class="form-layout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <section class="panel form-panel">
         <div class="form-section">
             <h2>Dados da solicitação</h2>
             <div class="form-grid">
-                <div class="field"><label for="tipo">Tipo <em>*</em></label><select id="tipo" name="tipo" required>
+                <div class="field"><label for="tipo">Tipo <em>*</em></label><select id="tipo" name="item_type" required>
                         <option value="">Selecione</option>
                         <option>Novas máquinas</option>
                         <option>Ferramentas</option>
                         <option>Peças e componentes</option>
                     </select></div>
                 <div class="field"><label for="quantidade">Quantidade <em>*</em></label><input id="quantidade"
-                        name="quantidade" type="number" min="1" value="1" required></div>
+                        name="quantity" type="number" min="1" value="1" required></div>
                 <div class="field field--full"><label for="item">Item <em>*</em></label><input id="item" name="item"
                         placeholder="Nome ou descrição do item" required></div>
                 <div class="field field--full"><label for="justificativa">Justificativa <em>*</em></label><textarea
-                        id="justificativa" name="justificativa" rows="5"
+                        id="justificativa" name="justification" rows="5"
                         placeholder="Explique a necessidade da compra e sua aplicação..." required></textarea></div>
             </div>
         </div>

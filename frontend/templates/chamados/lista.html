@@ -1,70 +1,12 @@
-{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='chamados' %}{% block title %}Chamados · SENAI CMMS{% endblock %}{% block
-breadcrumb %}Chamados{% endblock %}{% block content %}
-<div class="page-heading">
-    <div>
-        <div class="eyebrow">MANUTENÇÃO</div>
-        <h1>Chamados</h1>
-        <p>Gerencie e acompanhe as solicitações de manutenção.</p>
-    </div><a class="button button--primary" href="/chamados/novo">{{ ui_icon('plus', 16) }} Novo chamado</a>
-</div>
-<section class="metrics metrics--small">{% for label,value,tone in [('Todos os
-    chamados','128','neutral'),('Abertos','24','red'),('Em andamento','18','blue'),('Concluídos','86','green')] %}
-    <article class="metric-card metric-card--small"><span>{{ label }}</span><strong class="metric-card__value">{{ value
-            }}</strong></article>{% endfor %}</section>
-<section class="panel panel--table">
-    <div class="toolbar"><div class="toolbar__filters"><select class="select" data-table-filter="status" aria-label="Filtrar por status">
-                <option value="">Todos os status</option>
-                <option>Aberto</option>
-                <option>Em análise</option>
-                <option>Em manutenção</option>
-                <option>Aguardando peça</option>
-                <option>Concluído</option>
-            </select><select class="select" data-table-filter="prioridade" aria-label="Filtrar por prioridade">
-                <option value="">Todas as prioridades</option>
-                <option>Crítica</option>
-                <option>Alta</option>
-                <option>Média</option>
-                <option>Baixa</option>
-            </select><button class="button button--secondary" data-action="Filtros aplicados">{{ ui_icon('filter', 16) }}
-                <span>Filtros</span></button></div>
-    </div>
-    <div class="table-wrap">
-        <table data-filter-table>
-            <thead>
-                <tr>
-                    <th>NÚMERO</th>
-                    <th>EQUIPAMENTO</th>
-                    <th>PROBLEMA</th>
-                    <th>PRIORIDADE</th>
-                    <th>STATUS</th>
-                    <th>SOLICITANTE</th>
-                    <th>DATA</th>
-                </tr>
-            </thead>
-            <tbody>{% for id,equip,problem,priority,status,person,date,cls in [('#CH-2025-084','Torno CNC 01','Vibração
-                excessiva no eixo','Alta','Em análise','João Ferreira','20 out,
-                09:42','status--blue'),('#CH-2025-083','Injetora 01','Vazamento no sistema hidráulico','Crítica','Em
-                manutenção','Ana Souza','20 out, 08:15','status--orange'),('#CH-2025-082','Compressor','Ruído anormal
-                durante operação','Média','Aberto','Pedro Lima','19 out,
-                16:30','status--gray'),('#CH-2025-081','Furadeira 02','Mandril não fixa a
-                broca','Baixa','Concluído','Carlos Mendes','19 out, 14:12','status--green'),('#CH-2025-080','Serra
-                Fita','Lâmina desalinhada','Alta','Aguardando peça','Mariana Alves','18 out,
-                11:05','status--yellow'),('#CH-2025-079','Fresa CNC','Falha no painel de controle','Média','Em
-                manutenção','João Ferreira','17 out, 15:20','status--orange')] %}<tr data-status="{{ status }}"
-                    data-prioridade="{{ priority }}">
-                    <td><a class="table__id" href="/chamados/detalhe">{{ id }}</a></td>
-                    <td>{{ equip }}</td>
-                    <td>{{ problem }}</td>
-                    <td><span class="priority priority--{{ priority|lower }}">{{ priority }}</span></td>
-                    <td><span class="status {{ cls }}">{{ status }}</span></td>
-                    <td>{{ person }}</td>
-                    <td>{{ date }}</td>
-                </tr>{% endfor %}</tbody>
-        </table>
-    </div>
-    <div class="table-footer"><span>Exibindo <b>1–6</b> de <b>128</b> chamados</span>
-        <div class="pagination"><button aria-label="Página anterior" disabled>‹</button><button
-                class="pagination__active">1</button><button>2</button><button>3</button><span>…</span><button>22</button><button
-                aria-label="Próxima página">›</button></div>
-    </div>
-</section>{% endblock %}
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='chamados' %}
+{% block title %}Chamados · SENAI CMMS{% endblock %}{% block breadcrumb %}Chamados{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">MANUTENÇÃO</div><h1>Chamados</h1><p>Gerencie e acompanhe as solicitações de manutenção.</p></div><a class="button button--primary" href="/chamados/novo">{{ ui_icon('plus', 16) }} Novo chamado</a></div>
+<section class="metrics metrics--small">
+  {% for label,value in [('Total de chamados',calls|length),('Abertos',call_counts.get('Aberto',0)),('Em andamento',call_counts.get('Em manutenção',0)+call_counts.get('Aguardando peça',0)),('Concluídos',call_counts.get('Concluído',0))] %}<article class="metric-card metric-card--small"><span>{{ label }}</span><strong class="metric-card__value">{{ value }}</strong></article>{% endfor %}
+</section>
+<section class="panel panel--table"><div class="toolbar"><div class="toolbar__filters"><select class="select" data-table-filter="status" aria-label="Filtrar por status"><option value="">Todos os status</option>{% for status in ['Aberto','Em análise','Em manutenção','Aguardando peça','Concluído','Cancelado'] %}<option>{{ status }}</option>{% endfor %}</select><select class="select" data-table-filter="prioridade" aria-label="Filtrar por prioridade"><option value="">Todas as prioridades</option>{% for priority in ['Crítica','Alta','Média','Baixa'] %}<option>{{ priority }}</option>{% endfor %}</select></div></div>
+<div class="table-wrap"><table data-filter-table><thead><tr><th>NÚMERO</th><th>EQUIPAMENTO</th><th>PROBLEMA</th><th>PRIORIDADE</th><th>STATUS</th><th>SOLICITANTE</th><th>DATA</th></tr></thead><tbody>
+{% for call in calls %}<tr data-status="{{ call.status }}" data-prioridade="{{ call.priority }}"><td><a class="table__id" href="/chamados/detalhe?id={{ call.id }}">#{{ call.number }}</a></td><td>{{ call.equipment.name }}</td><td>{{ call.description|truncate(68) }}</td><td><span class="priority priority--{{ call.priority|lower }}">{{ call.priority }}</span></td><td><span class="status {{ status_class(call.status) }}">{{ call.status }}</span></td><td>{{ call.requester.name }}</td><td>{{ call.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>{% else %}<tr><td colspan="7">Nenhum chamado cadastrado.</td></tr>{% endfor %}
+</tbody></table></div><div class="table-footer"><span>{{ calls|length }} chamado(s)</span></div></section>
+{% endblock %}

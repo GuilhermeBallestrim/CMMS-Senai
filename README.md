@@ -50,6 +50,8 @@ Os papéis aceitos são somente `professor` e `administrator` (apresentado na in
 - `GET/POST /api/purchase-requests`, `PATCH /api/purchase-requests/{id}`
 - `GET /api/history` e `/api/indicators` (indicadores para administrador)
 
-## Observação sobre as telas
+## Telas conectadas
 
-O login e os limites de acesso das páginas estão conectados. As rotas API já implementam operações persistentes para os principais recursos; algumas listas e formulários HTML ainda usam conteúdo de protótipo e serão ligados a esses dados na próxima etapa.
+Chamados, equipamentos, solicitações de compra, ordens de serviço, histórico, indicadores e configurações de usuários/setores usam os registros do SQLite. O professor vê e altera seus próprios chamados e pedidos; o administrador também pode cadastrar usuários/equipamentos/setores, aprovar chamados e pedidos e atualizar ordens de serviço.
+
+Notificações e preferências gerais da unidade ainda são telas de protótipo. Upload de fotos e manuais também não está conectado.

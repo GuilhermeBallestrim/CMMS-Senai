@@ -8,36 +8,30 @@ block breadcrumb %}<a href="/chamados">Chamados</a> / Novo chamado{% endblock %}
     </div>
 </div>
 <form action="/chamados" method="post" enctype="multipart/form-data" class="form-layout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <section class="panel form-panel">
         <div class="form-section">
             <h2>Detalhes do problema</h2>
             <p>Informe o equipamento e descreva o que está acontecendo.</p>
             <div class="form-grid">
                 <div class="field field--full"><label for="equipamento">Equipamento <em>*</em></label><select
-                        id="equipamento" name="equipamento_id" required>
+                        id="equipamento" name="equipment_id" required>
                         <option value="">Selecione o equipamento</option>
-                        <option>Torno CNC 01 · USI-001</option>
-                        <option>Injetora 01 · PLA-001</option>
-                        <option>Compressor · UTI-001</option>
-                        <option>Furadeira 02 · MAR-002</option>
+                        {% for equipment in equipment_items %}<option value="{{ equipment.id }}">{{ equipment.name }} · {{ equipment.asset_tag }}</option>{% endfor %}
                     </select></div>
                 <div class="field field--full"><label for="descricao">Descrição do problema <em>*</em></label><textarea
-                        id="descricao" name="descricao" rows="5"
+                        id="descricao" name="description" rows="5"
                         placeholder="Descreva o problema, quando começou e qualquer detalhe relevante..."
                         required></textarea><small>Seja específico para agilizar o diagnóstico.</small></div>
                 <div class="field"><label for="prioridade">Prioridade <em>*</em></label><select id="prioridade"
-                        name="prioridade" required>
+                        name="priority" required>
                         <option value="">Selecione a prioridade</option>
                         <option>Baixa</option>
                         <option>Média</option>
                         <option>Alta</option>
                         <option>Crítica</option>
                     </select></div>
-                <div class="field"><label for="data">Data da solicitação</label><input id="data" name="data_solicitacao"
-                        type="date" value="2025-10-20"></div>
-                <div class="field field--full"><label for="foto">Foto do equipamento
-                        <span>(opcional)</span></label><input class="file-input" id="foto" name="foto" type="file"
-                        accept="image/*"><small>PNG ou JPG · máximo 10 MB</small></div>
+                <div class="field field--full"><small>A data e o horário serão registrados automaticamente.</small></div>
             </div>
         </div>
         <div class="form-actions"><a class="button button--secondary" href="/chamados">Cancelar</a><button

@@ -1,43 +1,4 @@
-{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='ordens' %}{% block title %}OS-2025-056 · SENAI CMMS{% endblock %}{% block
-breadcrumb %}<a href="/ordens-servico">Ordens de Serviço</a> / OS-2025-056{% endblock %}{% block content %}<div
-    class="page-heading">
-    <div>
-        <div class="eyebrow">ORDEM DE SERVIÇO · <span class="table__id">#OS-2025-056</span></div>
-        <h1>Manutenção — Injetora 01</h1>
-        <p>Gerada a partir do chamado <a class="text-link" href="/chamados/detalhe">#CH-2025-083</a></p>
-    </div><span class="status status--orange">Em execução</span>
-</div>
-<form action="/ordens-servico/OS-2025-056" method="post" class="form-layout">
-    <section class="panel form-panel">
-        <div class="form-section">
-            <h2>Registro do atendimento</h2>
-            <div class="form-grid">
-                <div class="field"><label>Equipamento</label><input value="Injetora 01 · PLA-001" readonly></div>
-                <div class="field"><label>Técnico responsável</label><input value="Rafael Mendes" readonly></div>
-                <div class="field"><label for="inicio">Início do atendimento</label><input id="inicio" name="inicio"
-                        type="datetime-local" value="2025-10-20T08:40"></div>
-                <div class="field"><label for="termino">Término</label><input id="termino" name="termino"
-                        type="datetime-local"></div>
-                <div class="field field--full"><label>Descrição do defeito</label><textarea name="defeito"
-                        rows="2">Vazamento identificado no circuito hidráulico principal.</textarea></div>
-                <div class="field field--full"><label for="causa">Causa encontrada</label><textarea id="causa"
-                        name="causa" rows="3" placeholder="Registre a causa raiz identificada..."></textarea></div>
-                <div class="field field--full"><label for="solucao">Solução aplicada</label><textarea id="solucao"
-                        name="solucao" rows="3" placeholder="Descreva os reparos realizados..."></textarea></div>
-                <div class="field"><label for="pecas">Peças utilizadas</label><input id="pecas" name="pecas"
-                        placeholder="Peça e quantidade"></div>
-                <div class="field"><label for="obs">Observações</label><input id="obs" name="observacoes"
-                        placeholder="Observações adicionais"></div>
-            </div>
-        </div>
-        <div class="form-actions"><a class="button button--secondary" href="/ordens-servico">Voltar</a><button
-                class="button button--primary" type="submit">{{ ui_icon('check', 16) }} Finalizar OS</button></div>
-    </section>
-    <aside class="panel form-aside"><span class="status status--orange">Em execução</span>
-        <h3>Dados da ordem</h3>
-        <p>Aberta em 20 de outubro de 2025</p>
-        <div class="detail-divider"></div><small class="muted">PRIORIDADE</small>
-        <p><span class="priority priority--critica">Crítica</span></p><small class="muted">TEMPO DE ATENDIMENTO</small>
-        <p>Em andamento · 2h 18min</p>
-    </aside>
-</form>{% endblock %}
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='ordens' %}{% block title %}{{ order.number }} · SENAI CMMS{% endblock %}{% block breadcrumb %}<a href="/ordens-servico">Ordens de Serviço</a> / {{ order.number }}{% endblock %}
+{% block content %}<div class="page-heading"><div><div class="eyebrow">ORDEM DE SERVIÇO · <span class="table__id">#{{ order.number }}</span></div><h1>Manutenção — {{ order.call.equipment.name }}</h1><p>Gerada a partir do chamado <a class="text-link" href="/chamados/detalhe?id={{ order.call.id }}">#{{ order.call.number }}</a></p></div><span class="status status--orange">{{ order.status }}</span></div>
+<form action="/ordens-servico/{{ order.id }}" method="post" class="form-layout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><section class="panel form-panel"><div class="form-section"><h2>Registro do atendimento</h2><div class="form-grid"><div class="field"><label>Equipamento</label><input value="{{ order.call.equipment.name }} · {{ order.call.equipment.asset_tag }}" readonly></div><div class="field"><label>Responsável</label><input value="{{ order.responsible.name }}" readonly></div><div class="field"><label for="status">Status</label><select id="status" name="status" {% if order.status == 'Concluída' %}disabled{% endif %}>{% for value in ['Em execução','Aguardando peça','Concluída'] %}<option {% if order.status == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div><div class="field"><label>Início do atendimento</label><input value="{{ order.started_at.strftime('%d/%m/%Y %H:%M') if order.started_at else 'Ainda não iniciado' }}" readonly></div><div class="field field--full"><label for="defect">Descrição do defeito</label><textarea id="defect" name="defect" rows="2">{{ order.defect or order.call.description }}</textarea></div><div class="field field--full"><label for="cause">Causa encontrada</label><textarea id="cause" name="cause" rows="3">{{ order.cause or '' }}</textarea></div><div class="field field--full"><label for="solution">Solução aplicada</label><textarea id="solution" name="solution" rows="3">{{ order.solution or '' }}</textarea></div><div class="field"><label for="parts">Peças utilizadas</label><input id="parts" name="parts" value="{{ order.parts or '' }}"></div><div class="field"><label for="notes">Observações</label><input id="notes" name="notes" value="{{ order.notes or '' }}"></div></div></div>
+{% if order.status != 'Concluída' %}<div class="form-actions"><a class="button button--secondary" href="/ordens-servico">Voltar</a><button class="button button--primary" type="submit">{{ ui_icon('check', 16) }} Salvar atualização</button></div>{% endif %}</section><aside class="panel form-aside"><span class="status status--blue">{{ order.status }}</span><h3>Dados da ordem</h3><p>Criada em {{ order.call.created_at.strftime('%d/%m/%Y') }}.</p><div class="detail-divider"></div><small class="muted">PRIORIDADE DO CHAMADO</small><p><span class="priority priority--{{ order.call.priority|lower }}">{{ order.call.priority }}</span></p></aside></form>{% endblock %}

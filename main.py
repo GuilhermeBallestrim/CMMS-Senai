@@ -3,19 +3,25 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 import secrets
+from hmac import compare_digest
+from datetime import date
+import re
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend import models
-from backend.api import router as api_router
+from backend.api import make_number, router as api_router
 from backend.config import settings
 from backend.database import Base, SessionLocal, engine, get_db
+from backend.security import hash_password
 from backend.security import verify_password
 
 
@@ -48,7 +54,7 @@ templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
 app.include_router(api_router)
 
 
-def render(request: Request, template: str, *, notice: str | None = None, status_code: int = 200):
+def render(request: Request, template: str, *, notice: str | None = None, status_code: int = 200, context: dict | None = None):
     csrf_token = request.session.get("csrf_token")
     if not csrf_token:
         csrf_token = secrets.token_urlsafe(32)
@@ -60,12 +66,13 @@ def render(request: Request, template: str, *, notice: str | None = None, status
             "notice": notice or request.query_params.get("notice", ""),
             "csrf_token": csrf_token,
             "current_user": request.session.get("user"),
+            **(context or {}),
         },
         status_code=status_code,
     )
 
 
-def page(request: Request, template: str, *, role: str | None = None):
+def page(request: Request, template: str, *, role: str | None = None, context: dict | None = None):
     user_id = request.session.get("user_id")
     if not user_id:
         return RedirectResponse("/login", status_code=303)
@@ -78,7 +85,22 @@ def page(request: Request, template: str, *, role: str | None = None):
         request.session["user"] = user
     if role == "administrator" and user["role"] != "administrator":
         return RedirectResponse("/dashboard?notice=Acesso%20restrito%20ao%20administrador.", status_code=303)
-    return render(request, template)
+    return render(request, template, context=context)
+
+
+def validate_csrf(request: Request, submitted: str) -> None:
+    expected = request.session.get("csrf_token", "")
+    if not expected or not compare_digest(expected, submitted):
+        raise HTTPException(status_code=403, detail="Sessão expirada. Atualize a página e tente novamente.")
+
+
+def status_class(value: str) -> str:
+    return {
+        "Aberto": "status--gray", "Em análise": "status--blue", "Em manutenção": "status--orange",
+        "Aguardando peça": "status--yellow", "Concluído": "status--green", "Concluída": "status--green",
+        "Cancelado": "status--red", "Aguardando início": "status--blue", "Em execução": "status--orange",
+        "Aprovada": "status--green", "Recusada": "status--red",
+    }.get(value, "status--gray")
 
 
 @app.get("/", include_in_schema=False)
@@ -129,51 +151,297 @@ async def password_recovery(request: Request):
 
 
 @app.get("/dashboard")
-async def dashboard(request: Request): return page(request, "dashboard.html")
+async def dashboard(request: Request):
+    with SessionLocal() as db:
+        user = request.session.get("user")
+        calls_query = select(models.MaintenanceCall).options(
+            selectinload(models.MaintenanceCall.equipment), selectinload(models.MaintenanceCall.requester)
+        ).order_by(models.MaintenanceCall.created_at.desc())
+        calls = db.scalars(calls_query).all()
+        if user and user["role"] == "professor":
+            calls = [call for call in calls if call.requester_id == user["id"]]
+        total = len(calls)
+        open_count = sum(call.status not in {"Concluído", "Cancelado"} for call in calls)
+        analysis_count = sum(call.status in {"Aberto", "Em análise"} for call in calls)
+        completed_count = sum(call.status == "Concluído" for call in calls)
+        orders = db.scalars(select(models.WorkOrder).options(
+            selectinload(models.WorkOrder.call).selectinload(models.MaintenanceCall.equipment),
+            selectinload(models.WorkOrder.responsible),
+        ).where(models.WorkOrder.status != "Concluída").order_by(models.WorkOrder.id.desc())).all()
+        return page(request, "dashboard.html", context={
+            "recent_calls": calls[:5], "open_count": open_count, "analysis_count": analysis_count,
+            "completed_count": completed_count, "total_calls": total, "active_orders": orders[:4],
+            "priority_counts": {priority: sum(call.priority == priority and call.status not in {"Concluído", "Cancelado"} for call in calls) for priority in ("Crítica", "Alta", "Média", "Baixa")},
+            "status_class": status_class,
+        })
 
 
 @app.get("/chamados")
-async def chamados(request: Request): return page(request, "chamados/lista.html")
+async def chamados(request: Request):
+    with SessionLocal() as db:
+        items = db.scalars(select(models.MaintenanceCall).options(
+            selectinload(models.MaintenanceCall.equipment), selectinload(models.MaintenanceCall.requester)
+        ).order_by(models.MaintenanceCall.created_at.desc())).all()
+        user = request.session.get("user")
+        if user and user["role"] == "professor":
+            items = [call for call in items if call.requester_id == user["id"]]
+        counts = {status: 0 for status in ("Aberto", "Em análise", "Em manutenção", "Aguardando peça", "Concluído")}
+        for call in items:
+            if call.status in counts:
+                counts[call.status] += 1
+        return page(request, "chamados/lista.html", context={"calls": items, "call_counts": counts})
 
 
 @app.get("/chamados/novo")
-async def novo_chamado(request: Request): return page(request, "chamados/novo.html")
+async def novo_chamado(request: Request):
+    with SessionLocal() as db:
+        equipment = db.scalars(select(models.Equipment).order_by(models.Equipment.name)).all()
+        return page(request, "chamados/novo.html", context={"equipment_items": equipment})
+
+
+@app.post("/chamados", name="criar_chamado")
+async def criar_chamado(
+    request: Request,
+    equipment_id: int = Form(...),
+    description: str = Form(...),
+    priority: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    if priority not in {"Baixa", "Média", "Alta", "Crítica"} or not 10 <= len(description.strip()) <= 5000:
+        return RedirectResponse("/chamados/novo?notice=Confira%20a%20descrição%20e%20a%20prioridade.", status_code=303)
+    with SessionLocal() as db:
+        if not db.get(models.Equipment, equipment_id):
+            return RedirectResponse("/chamados/novo?notice=Equipamento%20não%20encontrado.", status_code=303)
+        call = models.MaintenanceCall(
+            number=make_number("CH"),
+            equipment_id=equipment_id, requester_id=user["id"], description=description.strip(), priority=priority,
+        )
+        db.add(call)
+        db.commit()
+    return RedirectResponse("/chamados?notice=Chamado%20registrado%20com%20sucesso.", status_code=303)
 
 
 @app.get("/chamados/detalhe")
-async def detalhe_chamado(request: Request): return page(request, "chamados/detalhe.html")
+async def detalhe_chamado(request: Request, id: int | None = None):
+    with SessionLocal() as db:
+        call = db.scalar(select(models.MaintenanceCall).options(
+            selectinload(models.MaintenanceCall.equipment).selectinload(models.Equipment.sector),
+            selectinload(models.MaintenanceCall.requester), selectinload(models.MaintenanceCall.work_order),
+        ).where(models.MaintenanceCall.id == id)) if id else None
+        user = request.session.get("user")
+        if not call or (user and user["role"] == "professor" and call.requester_id != user["id"]):
+            return RedirectResponse("/chamados?notice=Chamado%20não%20encontrado.", status_code=303)
+        return page(request, "chamados/detalhe.html", context={"call": call, "status_class": status_class(call.status)})
+
+
+@app.post("/chamados/{call_id}/aprovar")
+async def aprovar_chamado(request: Request, call_id: int, csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem aprovar chamados.")
+    with SessionLocal() as db:
+        call = db.get(models.MaintenanceCall, call_id)
+        if not call:
+            raise HTTPException(404, "Chamado não encontrado.")
+        if not call.work_order:
+            db.add(models.WorkOrder(
+                number=make_number("OS"),
+                call=call, responsible_id=user["id"], status="Aguardando início",
+            ))
+            call.status = "Em análise"
+            db.commit()
+    return RedirectResponse(f"/chamados/detalhe?id={call_id}&notice=Ordem%20de%20serviço%20gerada.", status_code=303)
+
+
+@app.post("/chamados/{call_id}/cancelar")
+async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    with SessionLocal() as db:
+        call = db.get(models.MaintenanceCall, call_id)
+        if not call or (user["role"] == "professor" and call.requester_id != user["id"]):
+            raise HTTPException(404, "Chamado não encontrado.")
+        if call.status != "Aberto":
+            raise HTTPException(409, "Só é possível cancelar um chamado aberto.")
+        call.status = "Cancelado"
+        db.commit()
+    return RedirectResponse("/chamados?notice=Chamado%20cancelado.", status_code=303)
 
 
 @app.get("/equipamentos")
-async def equipamentos(request: Request): return page(request, "equipamentos/lista.html")
+async def equipamentos(request: Request):
+    with SessionLocal() as db:
+        items = db.scalars(select(models.Equipment).options(selectinload(models.Equipment.sector)).order_by(models.Equipment.name)).all()
+        return page(request, "equipamentos/lista.html", context={"equipment_items": items})
 
 
 @app.get("/equipamentos/novo")
-async def novo_equipamento(request: Request): return page(request, "equipamentos/novo.html", role="administrator")
+async def novo_equipamento(request: Request):
+    with SessionLocal() as db:
+        sectors = db.scalars(select(models.Sector).order_by(models.Sector.name)).all()
+        return page(request, "equipamentos/novo.html", role="administrator", context={"sectors": sectors})
+
+
+@app.post("/equipamentos")
+async def criar_equipamento(
+    request: Request, name: str = Form(...), sector_id: int = Form(...), model_name: str = Form(""),
+    serial_number: str = Form(""), acquired_at: str = Form(""),
+    asset_tag: str = Form(...), state: str = Form("Disponível"), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem cadastrar equipamentos.")
+    if state not in {"Disponível", "Em manutenção", "Indisponível"} or not 2 <= len(name.strip()) <= 120 or not 1 <= len(asset_tag.strip()) <= 80:
+        raise HTTPException(422, "Estado inválido.")
+    try:
+        acquired_date = date.fromisoformat(acquired_at) if acquired_at else None
+    except ValueError:
+        raise HTTPException(422, "Data de aquisição inválida.") from None
+    with SessionLocal() as db:
+        if not db.get(models.Sector, sector_id):
+            raise HTTPException(422, "Setor não encontrado.")
+        equipment = models.Equipment(name=name.strip(), sector_id=sector_id, model=model_name.strip() or None,
+                                     serial_number=serial_number.strip() or None, acquired_at=acquired_date,
+                                     asset_tag=asset_tag.strip(), state=state)
+        db.add(equipment)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return RedirectResponse("/equipamentos/novo?notice=Patrimônio%20já%20cadastrado%20ou%20dados%20inválidos.", status_code=303)
+    return RedirectResponse("/equipamentos?notice=Equipamento%20cadastrado.", status_code=303)
 
 
 @app.get("/equipamentos/detalhe")
-async def detalhe_equipamento(request: Request): return page(request, "equipamentos/detalhe.html")
+async def detalhe_equipamento(request: Request, id: int | None = None):
+    with SessionLocal() as db:
+        equipment = db.scalar(select(models.Equipment).options(selectinload(models.Equipment.sector)).where(models.Equipment.id == id)) if id else None
+        if not equipment:
+            return RedirectResponse("/equipamentos?notice=Equipamento%20não%20encontrado.", status_code=303)
+        return page(request, "equipamentos/detalhe.html", context={"equipment": equipment})
 
 
 @app.get("/ordens-servico")
-async def ordens_servico(request: Request): return page(request, "ordens_servico/lista.html", role="administrator")
+async def ordens_servico(request: Request):
+    with SessionLocal() as db:
+        items = db.scalars(select(models.WorkOrder).options(
+            selectinload(models.WorkOrder.call).selectinload(models.MaintenanceCall.equipment),
+            selectinload(models.WorkOrder.responsible),
+        ).order_by(models.WorkOrder.id.desc())).all()
+        counts = {status: sum(item.status == status for item in items) for status in ("Aguardando início", "Em execução", "Concluída")}
+        return page(request, "ordens_servico/lista.html", role="administrator", context={"work_orders": items, "order_counts": counts})
 
 
 @app.get("/ordens-servico/detalhe")
-async def detalhe_ordem_servico(request: Request): return page(request, "ordens_servico/detalhe.html", role="administrator")
+async def detalhe_ordem_servico(request: Request, id: int | None = None):
+    with SessionLocal() as db:
+        order = db.scalar(select(models.WorkOrder).options(
+            selectinload(models.WorkOrder.call).selectinload(models.MaintenanceCall.equipment),
+        ).where(models.WorkOrder.id == id)) if id else None
+        if not order:
+            return RedirectResponse("/ordens-servico?notice=Ordem%20de%20serviço%20não%20encontrada.", status_code=303)
+        return page(request, "ordens_servico/detalhe.html", role="administrator", context={"order": order})
+
+
+@app.post("/ordens-servico/{order_id}")
+async def salvar_ordem_servico(
+    request: Request, order_id: int, status: str = Form(...), solution: str = Form(""), notes: str = Form(""),
+    defect: str = Form(""), cause: str = Form(""), parts: str = Form(""), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem atualizar ordens de serviço.")
+    if status not in {"Em execução", "Aguardando peça", "Concluída"}:
+        raise HTTPException(422, "Status inválido.")
+    with SessionLocal() as db:
+        order = db.get(models.WorkOrder, order_id)
+        if not order:
+            raise HTTPException(404, "Ordem de serviço não encontrada.")
+        if status == "Em execução" and not order.started_at:
+            order.started_at = models.utc_now()
+        if status == "Concluída":
+            order.finished_at = models.utc_now()
+            order.call.status = "Concluído"
+            order.call.equipment.state = "Disponível"
+        else:
+            order.call.status = "Aguardando peça" if status == "Aguardando peça" else "Em manutenção"
+            order.call.equipment.state = "Em manutenção"
+        order.status, order.solution, order.notes = status, solution.strip() or None, notes.strip() or None
+        order.defect, order.cause, order.parts = defect.strip() or None, cause.strip() or None, parts.strip() or None
+        db.commit()
+    return RedirectResponse(f"/ordens-servico/detalhe?id={order_id}&notice=Ordem%20atualizada.", status_code=303)
 
 
 @app.get("/historico")
-async def historico(request: Request): return page(request, "historico/lista.html", role="administrator")
+async def historico(request: Request):
+    with SessionLocal() as db:
+        items = db.scalars(select(models.WorkOrder).options(
+            selectinload(models.WorkOrder.call).selectinload(models.MaintenanceCall.equipment),
+            selectinload(models.WorkOrder.responsible),
+        ).where(models.WorkOrder.status == "Concluída").order_by(models.WorkOrder.finished_at.desc())).all()
+        return page(request, "historico/lista.html", role="administrator", context={"completed_orders": items})
 
 
 @app.get("/solicitacoes")
-async def solicitacoes(request: Request): return page(request, "solicitacoes/lista.html")
+async def solicitacoes(request: Request):
+    with SessionLocal() as db:
+        items = db.scalars(select(models.PurchaseRequest).options(selectinload(models.PurchaseRequest.requester)).order_by(models.PurchaseRequest.created_at.desc())).all()
+        user = request.session.get("user")
+        if user and user["role"] == "professor":
+            items = [item for item in items if item.requester_id == user["id"]]
+        return page(request, "solicitacoes/lista.html", context={"purchase_requests": items, "status_class": status_class})
 
 
 @app.get("/solicitacoes/nova")
 async def nova_solicitacao(request: Request): return page(request, "solicitacoes/nova.html")
+
+
+@app.post("/solicitacoes")
+async def criar_solicitacao(
+    request: Request, item_type: str = Form(...), item: str = Form(...), quantity: int = Form(...),
+    justification: str = Form(...), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    if item_type not in {"Novas máquinas", "Ferramentas", "Peças e componentes"} or quantity < 1 or not 10 <= len(justification.strip()) <= 5000 or not 2 <= len(item.strip()) <= 180:
+        return RedirectResponse("/solicitacoes/nova?notice=Confira%20os%20dados%20da%20solicitação.", status_code=303)
+    with SessionLocal() as db:
+        db.add(models.PurchaseRequest(
+            number=make_number("SC"),
+            item_type=item_type, item=item.strip(), quantity=quantity, justification=justification.strip(), requester_id=user["id"],
+        ))
+        db.commit()
+    return RedirectResponse("/solicitacoes?notice=Solicitação%20registrada.", status_code=303)
+
+
+@app.post("/solicitacoes/{request_id}/decidir")
+async def decidir_solicitacao(request: Request, request_id: int, decision: str = Form(...), csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem analisar solicitações.")
+    if decision not in {"Aprovada", "Recusada"}:
+        raise HTTPException(422, "Decisão inválida.")
+    with SessionLocal() as db:
+        purchase = db.get(models.PurchaseRequest, request_id)
+        if not purchase:
+            raise HTTPException(404, "Solicitação não encontrada.")
+        if purchase.status != "Em análise":
+            raise HTTPException(409, "Esta solicitação já foi analisada.")
+        purchase.status, purchase.reviewed_by_id = decision, user["id"]
+        db.commit()
+    return RedirectResponse("/solicitacoes?notice=Decisão%20registrada.", status_code=303)
 
 
 @app.get("/solicitacoes/detalhe")
@@ -181,7 +449,19 @@ async def detalhe_solicitacao(request: Request): return page(request, "solicitac
 
 
 @app.get("/indicadores")
-async def indicadores(request: Request): return page(request, "indicadores/lista.html", role="administrator")
+async def indicadores(request: Request):
+    with SessionLocal() as db:
+        calls = db.scalars(select(models.MaintenanceCall)).all()
+        orders = db.scalars(select(models.WorkOrder)).all()
+        equipment = db.scalars(select(models.Equipment)).all()
+        elapsed = [(item.finished_at - item.started_at).total_seconds() / 3600 for item in orders if item.started_at and item.finished_at]
+        context = {
+            "calls_total": len(calls), "backlog": sum(item.status not in {"Concluído", "Cancelado"} for item in calls),
+            "equipment_total": len(equipment), "unavailable": sum(item.state == "Indisponível" for item in equipment),
+            "completion_rate": round(sum(item.status == "Concluída" for item in orders) / len(orders) * 100, 1) if orders else 0,
+            "mttr": round(sum(elapsed) / len(elapsed), 1) if elapsed else 0,
+        }
+        return page(request, "indicadores/lista.html", role="administrator", context=context)
 
 
 @app.get("/notificacoes")
@@ -189,4 +469,68 @@ async def notificacoes(request: Request): return page(request, "notificacoes/lis
 
 
 @app.get("/configuracoes")
-async def configuracoes(request: Request): return page(request, "configuracoes/lista.html", role="administrator")
+async def configuracoes(request: Request):
+    with SessionLocal() as db:
+        users = db.scalars(select(models.User).order_by(models.User.name)).all()
+        sectors = db.scalars(select(models.Sector).order_by(models.Sector.name)).all()
+        counts = dict(db.execute(select(models.Equipment.sector_id, func.count()).group_by(models.Equipment.sector_id)).all())
+        return page(request, "configuracoes/lista.html", role="administrator", context={"users": users, "sectors": sectors, "equipment_counts": counts})
+
+
+@app.post("/configuracoes/usuarios")
+async def web_create_user(
+    request: Request, name: str = Form(...), email: str = Form(...), password: str = Form(...),
+    role: str = Form(...), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem cadastrar usuários.")
+    email = email.strip().lower()
+    if (role not in {"professor", "administrator"} or len(password) < 12 or
+            len(name.strip()) < 2 or len(name.strip()) > 120 or
+            not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)):
+        return RedirectResponse("/configuracoes?notice=Selecione%20um%20dos%20dois%20perfis%20e%20use%20senha%20com%20ao%20menos%2012%20caracteres.", status_code=303)
+    with SessionLocal() as db:
+        db.add(models.User(name=name.strip(), email=email, password_hash=hash_password(password), role=role))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return RedirectResponse("/configuracoes?notice=Já%20existe%20uma%20conta%20com%20esse%20e-mail.", status_code=303)
+    return RedirectResponse("/configuracoes?notice=Usuário%20cadastrado.", status_code=303)
+
+
+@app.post("/configuracoes/setores")
+async def web_create_sector(request: Request, name: str = Form(...), csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem cadastrar setores.")
+    if not 2 <= len(name.strip()) <= 100:
+        return RedirectResponse("/configuracoes?notice=Informe%20um%20nome%20de%20setor%20válido.", status_code=303)
+    with SessionLocal() as db:
+        db.add(models.Sector(name=name.strip()))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return RedirectResponse("/configuracoes?notice=Esse%20setor%20já%20existe.", status_code=303)
+    return RedirectResponse("/configuracoes?notice=Setor%20cadastrado.", status_code=303)
+
+
+@app.post("/configuracoes/usuarios/{user_id}/ativar")
+async def web_set_user_active(request: Request, user_id: int, active: bool = Form(...), csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    admin = request.session.get("user")
+    if not admin or admin["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem gerenciar usuários.")
+    with SessionLocal() as db:
+        account = db.get(models.User, user_id)
+        if not account:
+            raise HTTPException(404, "Usuário não encontrado.")
+        if account.id == admin["id"] and not active:
+            raise HTTPException(400, "Não é possível desativar a própria conta.")
+        account.is_active = active
+        db.commit()
+    return RedirectResponse("/configuracoes?notice=Status%20do%20usuário%20atualizado.", status_code=303)

@@ -1,55 +1,6 @@
-{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='solicitacoes' %}{% block title %}Solicitações de Compra · SENAI CMMS{%
-endblock %}{% block breadcrumb %}Solicitações de Compra{% endblock %}{% block content %}<div class="page-heading">
-    <div>
-        <div class="eyebrow">SUPRIMENTOS</div>
-        <h1>Solicitações de Compra</h1>
-        <p>Acompanhe pedidos de máquinas, ferramentas, peças e componentes.</p>
-    </div><a class="button button--primary" href="/solicitacoes/nova">{{ ui_icon('plus', 16) }} Nova solicitação</a>
-</div>
-<section class="panel panel--table">
-    <div class="toolbar"><div class="toolbar__filters"><select class="select">
-                <option>Todos os status</option>
-                <option>Em análise</option>
-                <option>Aprovada</option>
-                <option>Recusada</option>
-            </select><select class="select">
-                <option>Todos os tipos</option>
-                <option>Peças e componentes</option>
-                <option>Ferramentas</option>
-                <option>Novas máquinas</option>
-            </select></div>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>NÚMERO</th>
-                    <th>ITEM</th>
-                    <th>TIPO</th>
-                    <th>QUANTIDADE</th>
-                    <th>SOLICITANTE</th>
-                    <th>DATA</th>
-                    <th>STATUS</th>
-                </tr>
-            </thead>
-            <tbody>{% for n,i,t,q,s,d,st,c in [('#SC-2025-018','Rolamento SKF 6205','Peças e componentes','04','Rafael
-                Mendes','20 out 2025','Em análise','status--blue'),('#SC-2025-017','Jogo de ferramentas de
-                corte','Ferramentas','02','Lucas Almeida','18 out
-                2025','Aprovada','status--green'),('#SC-2025-016','Sensor de pressão hidráulica','Peças e
-                componentes','01','Camila Rocha','16 out 2025','Em análise','status--blue'),('#SC-2025-015','Torno CNC
-                para laboratório','Novas máquinas','01','Marina Costa','10 out 2025','Recusada','status--red')] %}<tr>
-                    <td><a class="table__id" href="/solicitacoes/detalhe">{{ n }}</a></td>
-                    <td>{{ i }}</td>
-                    <td>{{ t }}</td>
-                    <td>{{ q }}</td>
-                    <td>{{ s }}</td>
-                    <td>{{ d }}</td>
-                    <td><span class="status {{ c }}">{{ st }}</span></td>
-                </tr>{% endfor %}</tbody>
-        </table>
-    </div>
-    <div class="table-footer"><span>Exibindo <b>4</b> de <b>18</b> solicitações</span>
-        <div class="pagination"><button>‹</button><button
-                class="pagination__active">1</button><button>2</button><button>3</button><button>›</button></div>
-    </div>
-</section>{% endblock %}
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='solicitacoes' %}
+{% block title %}Solicitações de Compra · SENAI CMMS{% endblock %}{% block breadcrumb %}Solicitações de Compra{% endblock %}
+{% block content %}<div class="page-heading"><div><div class="eyebrow">SUPRIMENTOS</div><h1>Solicitações de Compra</h1><p>Acompanhe pedidos de máquinas, ferramentas, peças e componentes.</p></div><a class="button button--primary" href="/solicitacoes/nova">{{ ui_icon('plus', 16) }} Nova solicitação</a></div>
+<section class="panel panel--table"><div class="table-wrap"><table><thead><tr><th>NÚMERO</th><th>ITEM</th><th>TIPO</th><th>QUANTIDADE</th><th>SOLICITANTE</th><th>DATA</th><th>STATUS</th>{% if current_user.role == 'administrator' %}<th>AÇÃO</th>{% endif %}</tr></thead><tbody>
+{% for item in purchase_requests %}<tr><td><span class="table__id">#{{ item.number }}</span></td><td>{{ item.item }}</td><td>{{ item.item_type }}</td><td>{{ item.quantity }}</td><td>{{ item.requester.name }}</td><td>{{ item.created_at.strftime('%d/%m/%Y') }}</td><td><span class="status {{ status_class(item.status) }}">{{ item.status }}</span></td>{% if current_user.role == 'administrator' %}<td>{% if item.status == 'Em análise' %}<form action="/solicitacoes/{{ item.id }}/decidir" method="post" style="display:flex;gap:.35rem"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button--primary" name="decision" value="Aprovada" type="submit">Aprovar</button><button class="button button--secondary" name="decision" value="Recusada" type="submit">Recusar</button></form>{% else %}—{% endif %}</td>{% endif %}</tr>{% else %}<tr><td colspan="8">Nenhuma solicitação cadastrada.</td></tr>{% endfor %}
+</tbody></table></div><div class="table-footer"><span>{{ purchase_requests|length }} solicitação(ões)</span></div></section>{% endblock %}

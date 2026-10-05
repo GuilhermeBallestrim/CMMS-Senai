@@ -25,7 +25,7 @@
     <nav class="sidebar__nav">
       {% set active = active_page|default('dashboard') %}
       <a class="nav-link {{ 'nav-link--active' if active == 'dashboard' else '' }}" href="/dashboard">{{ ui_icon('home') }}Dashboard</a>
-      <a class="nav-link {{ 'nav-link--active' if active == 'chamados' else '' }}" href="/chamados">{{ ui_icon('ticket') }}Chamados <span class="nav-link__count">8</span></a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'chamados' else '' }}" href="/chamados">{{ ui_icon('ticket') }}Chamados</a>
       <a class="nav-link {{ 'nav-link--active' if active == 'equipamentos' else '' }}" href="/equipamentos">{{ ui_icon('machine') }}Equipamentos</a>
       {% if current_user.role == 'administrator' %}<a class="nav-link {{ 'nav-link--active' if active == 'ordens' else '' }}" href="/ordens-servico">{{ ui_icon('clipboard') }}Ordens de Serviço</a>
       <a class="nav-link {{ 'nav-link--active' if active == 'historico' else '' }}" href="/historico">{{ ui_icon('history') }}Histórico</a>{% endif %}
@@ -33,9 +33,9 @@
       {% if current_user.role == 'administrator' %}<a class="nav-link {{ 'nav-link--active' if active == 'indicadores' else '' }}" href="/indicadores">{{ ui_icon('chart') }}Indicadores</a>{% endif %}
     </nav>
     <div class="sidebar__bottom">
-      <div class="sidebar__label">SISTEMA</div><a
+      <div class="sidebar__label">SISTEMA</div>{% if current_user.role == 'administrator' %}<a
       class="nav-link {{ 'nav-link--active' if active == 'configuracoes' else '' }}" href="/configuracoes">{{ ui_icon('settings') }}Configurações</a>
-      <div class="sidebar__help">{{ ui_icon('help', 19, 'sidebar__help-icon') }}<span><strong>Precisa de
+      {% endif %}<div class="sidebar__help">{{ ui_icon('help', 19, 'sidebar__help-icon') }}<span><strong>Precisa de
             ajuda?</strong><small>Consulte o suporte técnico</small></span><a href="mailto:suporte@senai.br"
           aria-label="Enviar e-mail ao suporte">{{ ui_icon('external', 15) }}</a></div>
     </div>
@@ -48,8 +48,8 @@
           aria-label="Notificações">{{ ui_icon('bell') }}</a><span class="topbar__divider"></span><span class="profile"
           aria-label="Usuário conectado"><span class="profile__avatar">{{ current_user.name[:2]|upper }}</span><span class="profile__info"><strong>{{ current_user.name }}</strong><small>{{ 'Administrador' if current_user.role == 'administrator' else 'Professor' }}</small></span></span><form action="/logout" method="post" style="margin-left:.75rem"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button--secondary" type="submit">Sair</button></form></div>
     </header>
-    <main class="content" id="conteudo">{% block content %}{% endblock %}<footer class="footer"><span>© 2025 SENAI CMMS
-          · Protótipo visual</span><span>Unidade SENAI — São Paulo</span></footer>
+    <main class="content" id="conteudo">{% block content %}{% endblock %}<footer class="footer"><span>© 2026 SENAI CMMS
+          · Gestão de manutenção</span><span>Unidade SENAI</span></footer>
     </main>
   </div>
   <div class="toast" role="status" aria-live="polite" data-toast data-notice="{{ notice|default('') }}"></div>
