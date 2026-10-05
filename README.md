@@ -49,9 +49,12 @@ Os papéis aceitos são somente `professor` e `administrator` (apresentado na in
 - `GET/PATCH /api/work-orders`, `GET /api/work-orders/{id}`
 - `GET/POST /api/purchase-requests`, `PATCH /api/purchase-requests/{id}`
 - `GET /api/history` e `/api/indicators` (indicadores para administrador)
+- `GET /api/notifications`, `POST /api/notifications/read-all`, `PATCH /api/notifications/{id}/read`
+- `GET/PUT /api/unit-settings` (administrador)
+- `POST /api/calls/{id}/photo`, `POST /api/equipment/{id}/files`; arquivos servidos por rotas autenticadas
 
 ## Telas conectadas
 
 Chamados, equipamentos, solicitações de compra, ordens de serviço, histórico, indicadores e configurações de usuários/setores usam os registros do SQLite. O professor vê e altera seus próprios chamados e pedidos; o administrador também pode cadastrar usuários/equipamentos/setores, aprovar chamados e pedidos e atualizar ordens de serviço.
 
-Notificações e preferências gerais da unidade ainda são telas de protótipo. Upload de fotos e manuais também não está conectado.
+Notificações são criadas para chamados, atualizações de ordens e decisões de compras. As preferências da unidade salvam nome, fuso horário e aviso administrativo de novos chamados. Fotos aceitam JPEG, PNG ou WebP (até 10 MB); manuais aceitam PDF (até 20 MB). Os uploads ficam na pasta ignorada `uploads/` e exigem sessão para leitura.

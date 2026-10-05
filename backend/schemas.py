@@ -116,6 +116,29 @@ class WorkOrderUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
 
 
+class NotificationRead(ORMModel):
+    id: int
+    title: str
+    message: str
+    href: str
+    kind: str
+    is_read: bool
+    created_at: datetime
+
+
+class UnitSettingsRead(ORMModel):
+    id: int
+    unit_name: str
+    timezone_name: str
+    notify_admin_new_call: bool
+
+
+class UnitSettingsUpdate(BaseModel):
+    unit_name: str = Field(min_length=2, max_length=160)
+    timezone_name: str = Field(min_length=1, max_length=80)
+    notify_admin_new_call: bool = True
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)

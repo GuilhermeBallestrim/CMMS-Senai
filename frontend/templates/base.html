@@ -45,11 +45,11 @@
         aria-label="Abrir navegação">{{ ui_icon('menu') }}</button>
       <div class="topbar__crumb">SENAI CMMS <span>/</span> {% block breadcrumb %}Visão geral{% endblock %}</div>
       <div class="topbar__actions"><a class="icon-button topbar__notification" href="/notificacoes"
-          aria-label="Notificações">{{ ui_icon('bell') }}</a><span class="topbar__divider"></span><span class="profile"
+          aria-label="Notificações: {{ notification_count }} não lidas">{{ ui_icon('bell') }}{% if notification_count %}<i></i>{% endif %}</a><span class="topbar__divider"></span><span class="profile"
           aria-label="Usuário conectado"><span class="profile__avatar">{{ current_user.name[:2]|upper }}</span><span class="profile__info"><strong>{{ current_user.name }}</strong><small>{{ 'Administrador' if current_user.role == 'administrator' else 'Professor' }}</small></span></span><form action="/logout" method="post" style="margin-left:.75rem"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button--secondary" type="submit">Sair</button></form></div>
     </header>
     <main class="content" id="conteudo">{% block content %}{% endblock %}<footer class="footer"><span>© 2026 SENAI CMMS
-          · Gestão de manutenção</span><span>Unidade SENAI</span></footer>
+          · Gestão de manutenção</span><span>{{ unit_settings.unit_name }}</span></footer>
     </main>
   </div>
   <div class="toast" role="status" aria-live="polite" data-toast data-notice="{{ notice|default('') }}"></div>

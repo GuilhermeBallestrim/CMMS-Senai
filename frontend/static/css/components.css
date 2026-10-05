@@ -1057,6 +1057,25 @@ tbody tr:hover {
     white-space: nowrap
 }
 
+.notification-list article form {
+    margin: 0;
+    flex: none
+}
+
+.notification-list article form button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 9px;
+    color: #b80510;
+    font-weight: 700;
+    white-space: nowrap
+}
+
+.notification-list article.notification--unread strong {
+    color: #20252d
+}
+
 .notification-dot {
     width: 8px;
     height: 8px;

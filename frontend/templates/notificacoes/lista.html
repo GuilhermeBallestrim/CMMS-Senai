@@ -1,30 +1,3 @@
-{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% block title %}Notificações · SENAI CMMS{% endblock %}{% block breadcrumb %}Notificações{%
-endblock %}{% block content %}<div class="page-heading">
-    <div>
-        <div class="eyebrow">CENTRAL DE AVISOS</div>
-        <h1>Notificações</h1>
-        <p>Atualizações importantes sobre sua operação.</p>
-    </div><button class="text-link" data-action="Notificações marcadas como lidas">Marcar todas como lidas</button>
-</div>
-<section class="panel notification-list">
-    <article><i class="notification-dot notification-dot--red"></i>
-        <div><strong>Novo chamado crítico</strong>
-            <p>Injetora 01 — Vazamento no sistema hidráulico</p><small>Hoje às 08:15 · Chamado #CH-2025-083</small>
-        </div><a href="/chamados/detalhe">Ver chamado {{ ui_icon('arrow-right', 14) }}</a>
-    </article>
-    <article><i class="notification-dot notification-dot--blue"></i>
-        <div><strong>Ordem de serviço atribuída</strong>
-            <p>OS-2025-056 foi atribuída a Rafael Mendes</p><small>Hoje às 08:20</small>
-        </div><a href="/ordens-servico/detalhe">Ver OS {{ ui_icon('arrow-right', 14) }}</a>
-    </article>
-    <article><i class="notification-dot notification-dot--orange"></i>
-        <div><strong>Preventiva próxima</strong>
-            <p>Compressor — manutenção preventiva em 3 dias</p><small>Ontem às 16:00</small>
-        </div><a href="/equipamentos/detalhe">Ver equipamento {{ ui_icon('arrow-right', 14) }}</a>
-    </article>
-    <article><i class="notification-dot notification-dot--green"></i>
-        <div><strong>Chamado concluído</strong>
-            <p>Furadeira 02 — Mandril não fixa a broca</p><small>Ontem às 14:12 · Chamado #CH-2025-081</small>
-        </div><a href="/chamados/detalhe">Ver chamado {{ ui_icon('arrow-right', 14) }}</a>
-    </article>
-</section>{% endblock %}
+{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% block title %}Notificações · SENAI CMMS{% endblock %}{% block breadcrumb %}Notificações{% endblock %}
+{% block content %}<div class="page-heading"><div><div class="eyebrow">CENTRAL DE AVISOS</div><h1>Notificações</h1><p>Atualizações sobre chamados, ordens e solicitações.</p></div>{% if notifications|selectattr('is_read','equalto',false)|list|length %}<form action="/notificacoes/ler-todas" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="text-link" type="submit">Marcar todas como lidas</button></form>{% endif %}</div>
+<section class="panel notification-list">{% for item in notifications %}<article class="{% if not item.is_read %}notification--unread{% endif %}"><i class="notification-dot {{ 'notification-dot--red' if item.kind == 'warning' else 'notification-dot--blue' if item.kind == 'info' else 'notification-dot--green' }}"></i><div><strong>{{ item.title }}</strong><p>{{ item.message }}</p><small>{{ local_datetime(item.created_at, unit_settings.timezone_name) }}{% if not item.is_read %} · Não lida{% endif %}</small></div><form action="/notificacoes/{{ item.id }}/ler" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="text-link" type="submit">Ver {{ ui_icon('arrow-right',14) }}</button></form></article>{% else %}<p class="muted">Você não tem notificações.</p>{% endfor %}</section>{% endblock %}

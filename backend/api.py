@@ -5,20 +5,23 @@ from datetime import datetime, timezone
 from hmac import compare_digest
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.dependencies import get_current_user, require_roles
-from backend.models import Equipment, MaintenanceCall, PurchaseRequest, Sector, User, WorkOrder, utc_now
+from backend.models import Equipment, MaintenanceCall, Notification, PurchaseRequest, Sector, UnitSettings, User, WorkOrder, utc_now
 from backend.schemas import (
     CallCreate, CallRead, CallUpdate, EquipmentCreate, EquipmentRead, LoginRequest,
     PurchaseCreate, PurchaseDecision, PurchaseRead, SectorCreate, SectorRead,
-    UserCreate, UserRead, WorkOrderUpdate,
+    UserCreate, UserRead, WorkOrderUpdate, NotificationRead, UnitSettingsRead, UnitSettingsUpdate,
 )
 from backend.security import hash_password, verify_password
+from backend.services import notify_administrators, notify_user
+from backend.storage import file_path, save_image, save_pdf
 
 
 router = APIRouter(prefix="/api")
@@ -44,6 +47,108 @@ async def csrf_header(request: Request) -> None:
 
 def make_number(prefix: str) -> str:
     return f"{prefix}-{datetime.now(timezone.utc):%Y}-{uuid4().hex[:6].upper()}"
+
+
+def get_or_create_unit_settings(db: Session) -> UnitSettings:
+    settings = db.get(UnitSettings, 1)
+    if settings is None:
+        settings = UnitSettings(id=1)
+        db.add(settings)
+        db.flush()
+    return settings
+
+
+@router.get("/notifications", response_model=list[NotificationRead])
+def list_notifications(db: Session = Depends(get_db), user: User = Depends(authenticated)):
+    return db.scalars(select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc())).all()
+
+
+@router.post("/notifications/read-all", status_code=204, dependencies=[Depends(csrf_header)])
+def read_all_notifications(db: Session = Depends(get_db), user: User = Depends(authenticated)):
+    db.execute(update(Notification).where(Notification.user_id == user.id, Notification.is_read.is_(False)).values(is_read=True))
+    db.commit()
+    return None
+
+
+@router.patch("/notifications/{notification_id}/read", response_model=NotificationRead, dependencies=[Depends(csrf_header)])
+def read_notification(notification_id: int, db: Session = Depends(get_db), user: User = Depends(authenticated)):
+    item = db.get(Notification, notification_id)
+    if not item or item.user_id != user.id:
+        raise HTTPException(404, "Notificação não encontrada.")
+    item.is_read = True
+    db.commit()
+    return item
+
+
+@router.get("/unit-settings", response_model=UnitSettingsRead)
+def get_unit_settings(db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+    return get_or_create_unit_settings(db)
+
+
+@router.put("/unit-settings", response_model=UnitSettingsRead, dependencies=[Depends(csrf_header)])
+def update_unit_settings(payload: UnitSettingsUpdate, db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+    valid_timezones = {"America/Sao_Paulo", "America/Manaus", "America/Belem", "America/Fortaleza", "America/Recife", "America/Rio_Branco", "UTC"}
+    if payload.timezone_name not in valid_timezones:
+        raise HTTPException(422, "Fuso horário não permitido.")
+    settings = get_or_create_unit_settings(db)
+    settings.unit_name = payload.unit_name.strip()
+    settings.timezone_name = payload.timezone_name
+    settings.notify_admin_new_call = payload.notify_admin_new_call
+    db.commit()
+    return settings
+
+
+@router.post("/calls/{call_id}/photo", status_code=204, dependencies=[Depends(csrf_header)])
+async def upload_call_photo(call_id: int, photo: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(authenticated)):
+    call = db.get(MaintenanceCall, call_id)
+    if not call or (user.role == "professor" and call.requester_id != user.id):
+        raise HTTPException(404, "Chamado não encontrado.")
+    filename, mime = await save_image(photo, "calls")
+    call.photo_name, call.photo_mime = filename, mime
+    db.commit()
+    return None
+
+
+@router.post("/equipment/{equipment_id}/files", status_code=204, dependencies=[Depends(csrf_header)])
+async def upload_equipment_files(
+    equipment_id: int, photo: UploadFile | None = File(None), manual: UploadFile | None = File(None),
+    db: Session = Depends(get_db), _admin: User = Depends(admin_only),
+):
+    equipment = db.get(Equipment, equipment_id)
+    if not equipment:
+        raise HTTPException(404, "Equipamento não encontrado.")
+    if not photo and not manual:
+        raise HTTPException(422, "Envie uma foto, um manual PDF ou ambos.")
+    if photo:
+        equipment.photo_name, equipment.photo_mime = await save_image(photo, "equipment")
+    if manual:
+        equipment.manual_name, equipment.manual_mime = await save_pdf(manual, "equipment")
+    db.commit()
+    return None
+
+
+@router.get("/calls/{call_id}/photo")
+def get_call_photo(call_id: int, db: Session = Depends(get_db), user: User = Depends(authenticated)):
+    call = db.get(MaintenanceCall, call_id)
+    if not call or not call.photo_name or (user.role == "professor" and call.requester_id != user.id):
+        raise HTTPException(404, "Foto não encontrada.")
+    return FileResponse(file_path("calls", call.photo_name), media_type=call.photo_mime or "application/octet-stream")
+
+
+@router.get("/equipment/{equipment_id}/photo")
+def get_equipment_photo(equipment_id: int, db: Session = Depends(get_db), _user: User = Depends(authenticated)):
+    equipment = db.get(Equipment, equipment_id)
+    if not equipment or not equipment.photo_name:
+        raise HTTPException(404, "Foto não encontrada.")
+    return FileResponse(file_path("equipment", equipment.photo_name), media_type=equipment.photo_mime or "application/octet-stream")
+
+
+@router.get("/equipment/{equipment_id}/manual")
+def get_equipment_manual(equipment_id: int, db: Session = Depends(get_db), _user: User = Depends(authenticated)):
+    equipment = db.get(Equipment, equipment_id)
+    if not equipment or not equipment.manual_name:
+        raise HTTPException(404, "Manual não encontrado.")
+    return FileResponse(file_path("equipment", equipment.manual_name), media_type=equipment.manual_mime or "application/pdf")
 
 
 def commit_or_conflict(db: Session, message: str) -> None:
@@ -171,6 +276,10 @@ def create_call(payload: CallCreate, db: Session = Depends(get_db), user: User =
         raise HTTPException(422, "Equipamento não encontrado.")
     call = MaintenanceCall(number=make_number("CH"), requester_id=user.id, **payload.model_dump())
     db.add(call)
+    db.flush()
+    preferences = get_or_create_unit_settings(db)
+    if preferences.notify_admin_new_call:
+        notify_administrators(db, "Novo chamado", f"{call.number}: {payload.priority} prioridade.", f"/chamados/detalhe?id={call.id}", "warning" if payload.priority in {"Alta", "Crítica"} else "info")
     db.commit()
     db.refresh(call)
     return call
@@ -191,11 +300,17 @@ def update_call(call_id: int, payload: CallUpdate, db: Session = Depends(get_db)
     call = db.get(MaintenanceCall, call_id)
     if not call:
         raise HTTPException(404, "Chamado não encontrado.")
+    old_status = call.status
     if user.role == "professor":
         if call.requester_id != user.id or payload.status != "Cancelado" or call.status != "Aberto":
             raise HTTPException(403, "Professor só pode cancelar o próprio chamado enquanto estiver aberto.")
     call.status = payload.status
     call.updated_at = utc_now()
+    if old_status != call.status:
+        if user.role == "professor":
+            notify_administrators(db, "Chamado cancelado", f"{call.number} foi cancelado pelo solicitante.", f"/chamados/detalhe?id={call.id}", "warning")
+        else:
+            notify_user(db, call.requester_id, "Chamado atualizado", f"{call.number}: {call.status}.", f"/chamados/detalhe?id={call.id}")
     db.commit()
     return call
 
@@ -212,6 +327,8 @@ def approve_call(call_id: int, db: Session = Depends(get_db), admin: User = Depe
     order = WorkOrder(number=make_number("OS"), call=call, responsible_id=admin.id, status="Aguardando início")
     call.status = "Em análise"
     db.add(order)
+    db.flush()
+    notify_user(db, call.requester_id, "Chamado aprovado", f"{call.number} gerou a ordem {order.number}.", f"/chamados/detalhe?id={call.id}")
     db.commit()
     db.refresh(order)
     return {"id": order.id, "number": order.number, "status": order.status}
@@ -252,6 +369,7 @@ def update_work_order(order_id: int, payload: WorkOrderUpdate, db: Session = Dep
         order.call.status = "Aguardando peça" if payload.status == "Aguardando peça" else "Em manutenção"
         order.call.equipment.state = "Em manutenção"
     order.call.updated_at = utc_now()
+    notify_user(db, order.call.requester_id, "Ordem de serviço atualizada", f"{order.number}: {order.status}.", f"/chamados/detalhe?id={order.call.id}")
     db.commit()
     return order
 
@@ -268,6 +386,7 @@ def list_purchase_requests(db: Session = Depends(get_db), user: User = Depends(a
 def create_purchase_request(payload: PurchaseCreate, db: Session = Depends(get_db), user: User = Depends(authenticated)):
     request = PurchaseRequest(number=make_number("SC"), requester_id=user.id, **payload.model_dump())
     db.add(request)
+    notify_administrators(db, "Nova solicitação de compra", f"{request.number}: {request.item}.", "/solicitacoes", "info")
     db.commit()
     db.refresh(request)
     return request
@@ -282,6 +401,7 @@ def decide_purchase_request(request_id: int, payload: PurchaseDecision, db: Sess
         raise HTTPException(409, "Esta solicitação já foi analisada.")
     request.status = payload.status
     request.reviewed_by_id = admin.id
+    notify_user(db, request.requester_id, "Solicitação analisada", f"{request.number}: {request.status.lower()}.", "/solicitacoes")
     db.commit()
     return request
 

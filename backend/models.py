@@ -23,6 +23,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(24), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    notifications: Mapped[list[Notification]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Sector(Base):
@@ -46,6 +47,8 @@ class Equipment(Base):
     state: Mapped[str] = mapped_column(String(30), default="Disponível", nullable=False)
     photo_name: Mapped[str | None] = mapped_column(String(255))
     manual_name: Mapped[str | None] = mapped_column(String(255))
+    photo_mime: Mapped[str | None] = mapped_column(String(40))
+    manual_mime: Mapped[str | None] = mapped_column(String(40))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     sector: Mapped[Sector] = relationship()
@@ -64,6 +67,8 @@ class MaintenanceCall(Base):
     status: Mapped[str] = mapped_column(String(32), default="Aberto", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+    photo_name: Mapped[str | None] = mapped_column(String(255))
+    photo_mime: Mapped[str | None] = mapped_column(String(40))
 
     equipment: Mapped[Equipment] = relationship()
     requester: Mapped[User] = relationship()
@@ -106,3 +111,27 @@ class PurchaseRequest(Base):
 
     requester: Mapped[User] = relationship(foreign_keys=[requester_id])
     reviewed_by: Mapped[User | None] = relationship(foreign_keys=[reviewed_by_id])
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    href: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), default="info", nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="notifications")
+
+
+class UnitSettings(Base):
+    __tablename__ = "unit_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    unit_name: Mapped[str] = mapped_column(String(160), default="SENAI — São Paulo", nullable=False)
+    timezone_name: Mapped[str] = mapped_column(String(80), default="America/Sao_Paulo", nullable=False)
+    notify_admin_new_call: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
