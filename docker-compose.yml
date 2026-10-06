@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: cmms-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FIREBASE_KEY_PATH=config/firebase-key.json
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - /app/venv
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - cmms-network
+
+networks:
+  cmms-network:
+    driver: bridge

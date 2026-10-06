@@ -5,3 +5,6 @@ __pycache__/
 .env
 cmms.db
 uploads/
+config/firebase-key.json
+.env
+*.log
