@@ -1,11 +1,17 @@
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .env
 cmms.db
 uploads/
+
+# O Firebase saiu do projeto. O arquivo segue ignorado por precaução, caso
+# sobre no disco de alguém que venha do histórico do git.
 config/firebase-key.json
-.env
+
+# Nunca use *.json genérico: ele esconderia arquivos JSON legítimos do projeto.
+
 *.log
-*.json
+*.zip

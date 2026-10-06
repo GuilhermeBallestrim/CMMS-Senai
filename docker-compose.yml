@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   backend:
     build:
@@ -9,12 +7,30 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - FIREBASE_KEY_PATH=config/firebase-key.json
       - PYTHONUNBUFFERED=1
+      - CMMS_ENV=${CMMS_ENV:-production}
+      - CMMS_DATABASE_URL=${CMMS_DATABASE_URL:?defina CMMS_DATABASE_URL no .env ou no ambiente}
+      - CMMS_SESSION_SECRET=${CMMS_SESSION_SECRET:?defina CMMS_SESSION_SECRET no .env ou no ambiente}
+      - CMMS_DB_POOL_SIZE=${CMMS_DB_POOL_SIZE:-5}
+      - CMMS_DB_MAX_OVERFLOW=${CMMS_DB_MAX_OVERFLOW:-5}
+    # `migrate` roda alembic upgrade head e encerra; o backend só sobe depois.
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+    networks:
+      - cmms-network
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cmms-nginx
+    ports:
+      - "80:80"
     volumes:
-      - .:/app
-      - /app/venv
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
     networks:
       - cmms-network
 

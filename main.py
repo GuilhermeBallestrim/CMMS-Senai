@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend import models
 from backend.api import make_number, router as api_router
 from backend.config import settings
-from backend.database import Base, SessionLocal, engine, get_db, migrate_schema
+from backend.database import Base, SessionLocal, engine, get_db
 from backend.dependencies import get_current_user
 from backend.security import hash_password
 from backend.services import notify_administrators, notify_user
@@ -32,10 +32,27 @@ ROOT_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
 
 
+def ensure_schema_ready() -> None:
+    """Prepare the database before the app accepts traffic.
+
+    Em desenvolvimento (SQLite) o schema é criado automaticamente para manter a
+    experiência simples. Em produção o schema é versionado pelo Alembic e a
+    aplicação apenas valida que a migração foi aplicada, para não haver duas
+    fontes de verdade sobre o formato do banco.
+    """
+    if settings.database_url.startswith("sqlite"):
+        Base.metadata.create_all(bind=engine)
+        return
+    inspector = inspect(engine)
+    if "maintenance_calls" not in inspector.get_table_names():
+        raise RuntimeError(
+            "Schema do banco ausente. Execute `alembic upgrade head` antes de iniciar o servidor."
+        )
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    migrate_schema()
+    ensure_schema_ready()
     with SessionLocal() as db:
         for name in ("Usinagem", "Plástico", "Utilidades", "Marcenaria"):
             if not db.scalar(select(models.Sector).where(models.Sector.name == name)):
