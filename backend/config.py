@@ -7,9 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-
 def load_local_env() -> None:
-    """Load simple KEY=VALUE settings without requiring python-dotenv."""
     env_file = Path(__file__).resolve().parent.parent / ".env"
     if not env_file.exists():
         return
@@ -29,42 +27,12 @@ def _as_bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _as_int(value: str | None, default: int, *, minimum: int = 1) -> int:
-    try:
-        return max(minimum, int(str(value).strip()))
-    except (TypeError, ValueError):
-        return default
-
-
-POSTGRES_SCHEMES = {
-    "postgres": "postgresql+psycopg",
-    "postgresql": "postgresql+psycopg",
-    "postgresql+psycopg2": "postgresql+psycopg",
-    "postgresql+psycopg2binary": "postgresql+psycopg",
-}
-
-
-def normalize_database_url(url: str) -> str:
-    """Accept the postgres:// form Supabase shows and map it to a SQLAlchemy driver.
-
-    The Supabase dashboard displays `postgresql://user:pass@host:port/db`, but SQLAlchemy
-    needs an explicit `+psycopg` driver. Only Postgres URLs are rewritten; anything else
-    (notably `sqlite:///`, whose triple slash is significant) is returned untouched.
-    """
-    raw = url.strip()
-    scheme = raw.split("://", 1)[0].lower() if "://" in raw else ""
-    if scheme in POSTGRES_SCHEMES:
-        return POSTGRES_SCHEMES[scheme] + raw[len(scheme):]
-    return raw
-
-
 @dataclass(frozen=True)
 class Settings:
-    database_url: str
+    supabase_url: str
+    supabase_key: str
     session_secret: str
     session_https_only: bool
-    db_pool_size: int
-    db_max_overflow: int
     debug: bool
 
 
@@ -81,17 +49,11 @@ def load_settings() -> Settings:
             RuntimeWarning,
             stacklevel=2,
         )
-    database_url = normalize_database_url(
-        os.getenv("CMMS_DATABASE_URL", "sqlite:///./cmms.db")
-    )
-    if environment == "production" and database_url.startswith("sqlite"):
-        raise RuntimeError("CMMS_DATABASE_URL deve apontar para o Postgres em produção.")
     return Settings(
-        database_url=database_url,
+        supabase_url=os.getenv("CMMS_SUPABASE_URL", ""),
+        supabase_key=os.getenv("CMMS_SUPABASE_KEY", ""),
         session_secret=secret,
         session_https_only=environment == "production",
-        db_pool_size=_as_int(os.getenv("CMMS_DB_POOL_SIZE"), 5),
-        db_max_overflow=_as_int(os.getenv("CMMS_DB_MAX_OVERFLOW"), 5),
         debug=_as_bool(os.getenv("CMMS_DEBUG"), False),
     )
 
