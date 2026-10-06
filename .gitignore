@@ -8,3 +8,4 @@ uploads/
 config/firebase-key.json
 .env
 *.log
+*.json
