@@ -1,48 +1,34 @@
 # SENAI CMMS
 
-Sistema web de gestão de manutenção industrial. O projeto usa FastAPI, Jinja2 e PostgreSQL (Supabase em produção, SQLite local em desenvolvimento).
+Sistema web de gestão de manutenção industrial. O projeto usa FastAPI, Jinja2 e Supabase (PostgreSQL) como única fonte de persistência.
 
 ## Banco de dados
 
-O schema é versionado pelo Alembic. Em desenvolvimento o SQLite cria as tabelas sozinho; em produção o schema vem das migrações.
+O schema é versionado pelo arquivo `supabase_schema.sql` (PostgreSQL/Supabase). Não há SQLite local nem Alembic: em todos os ambientes a aplicação conecta ao Supabase.
 
-### Desenvolvimento (SQLite, sem configuração)
+### Configuração do Supabase
 
-```powershell
-python -m alembic upgrade head   # opcional: o uvicorn também cria o schema no SQLite
-python -m backend.cli create-admin
-python -m uvicorn main:app --reload
-```
-
-### Produção (Supabase/PostgreSQL)
-
-1. Crie o projeto em [supabase.com](https://supabase.com) e abra **Settings → Database → Connection string → URI**.
-2. Copie a URI **do session pooler (porta 5432)**. No `.env`:
+1. Crie o projeto em [supabase.com](https://supabase.com).
+2. Abra **Settings → API** e copie a **Project URL** e a **service_role key** (nunca a anon key).
+3. Abra **Settings → SQL Editor → New query**, cole o conteúdo de `supabase_schema.sql` e execute. Isso cria as 9 tabelas (sectors, users, unit_settings, equipment, maintenance_calls, work_orders, purchase_requests, notifications, audit_logs) e os dados iniciais.
+4. No `.env`:
 
    ```dotenv
    CMMS_ENV=production
-   CMMS_DATABASE_URL=postgresql://postgres.PROJECT_REF:SENHA@aws-0-REGIAO.pooler.supabase.com:5432/postgres
+   CMMS_SUPABASE_URL=https://SEU_PROJETO.supabase.co
+   CMMS_SUPABASE_KEY=cole-aqui-a-service-role-key
    CMMS_SESSION_SECRET=<chave aleatória>
    ```
 
-   A URI pode ser colada como aparece no painel: o backend converte `postgresql://` para `postgresql+psycopg://`. Se a senha tiver caractere especial (`@ : / # ?`), ela precisa estar codificada em URL (`%40`, `%3A`, `%2F`).
+Para validar a conexão e o schema sem escrever nada:
 
-3. Aplique as migrações e valide:
-
-   ```powershell
-   python -m alembic upgrade head
-   python scripts\check_db.py
-   ```
-
-O `check_db.py` testa DNS, TLS, autenticação, transações e se as 8 tabelas existem, sem escrever nada.
-
-**Sobre o pool.** `CMMS_DB_POOL_SIZE` e `CMMS_DB_MAX_OVERFLOW` controlam as conexões abertas; a soma não deve passar do limite do seu plano, porque o pooler do Supabase é o gargalo. `pool_recycle` já está em 1800s para descartar conexões ociosas que o pooler fecha.
-
-Em `CMMS_ENV=production` o servidor **recusa** subir se o schema não existir, em vez de tentar criá-lo — assim não há duas fontes de verdade sobre o formato do banco.
+```powershell
+python scripts\check_db.py
+```
 
 ## Configuração no Windows
 
-Pré-requisitos: Python 3.12 (ou compatível com as dependências em `requirements.txt`) e espaço livre para instalar os pacotes.
+Pré-requisitos: Python 3.12 (ou compatível com as dependências em `requirements.txt`).
 
 No PowerShell, na pasta do projeto:
 
@@ -53,7 +39,7 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Defina `CMMS_SESSION_SECRET` em `.env` com um valor aleatório privado (por exemplo, gere com `python -c "import secrets; print(secrets.token_urlsafe(48))"`). Sem essa variável, o servidor emite um aviso a cada boot e todas as sessões expiram ao reiniciar.
+Defina `CMMS_SUPABASE_URL`, `CMMS_SUPABASE_KEY` e `CMMS_SESSION_SECRET` em `.env` (gere a chave com `python -c "import secrets; print(secrets.token_urlsafe(48))"`). Sem `CMMS_SESSION_SECRET`, o servidor emite um aviso a cada boot e todas as sessões expiram ao reiniciar.
 
 Em seguida crie o primeiro administrador de forma interativa e inicie o servidor:
 
@@ -75,7 +61,8 @@ Se a ativação do ambiente for bloqueada pelo PowerShell, execute diretamente:
 ## Perfis e permissões
 
 - **Professor:** consulta equipamentos e setores, abre e acompanha os próprios chamados e solicitações de compra.
-- **Administrador:** pode tudo que o professor pode; além disso, gerencia usuários/equipamentos/setores, aprova chamados e solicitações, atualiza ordens de serviço e consulta histórico/indicadores.
+- **Técnico:** consulta equipamentos e setores, visualiza a fila de chamados e ordens de serviço, e registra a execução (diagnóstico, causa, solução, peças) nas ordens a ele atribuídas.
+- **Administrador:** pode tudo que os demais perfis podem; além disso, gerencia usuários/equipamentos/setores, aprova chamados e solicitações, atribui técnicos às ordens de serviço e consulta histórico/indicadores.
 
 Os papéis aceitos são somente `professor` e `administrator` (apresentado na interface como Administrador). As APIs sob `/api` exigem sessão, aplicam autorização no servidor e protegem alterações com token CSRF. A documentação interativa fica em `/docs`.
 
@@ -84,14 +71,15 @@ Os papéis aceitos são somente `professor` e `administrator` (apresentado na in
 - `GET /api/health`, `/api/auth/csrf`, `/api/auth/me`; `POST /api/auth/login` e `/api/auth/logout`
 - `GET/POST /api/users`, `PATCH /api/users/{id}/active` (administrador)
 - `GET/POST /api/sectors` (criação por administrador)
-- `GET/POST /api/equipment`, `GET /api/equipment/{id}` (criação por administrador)
-- `GET/POST /api/calls`, `GET/PATCH /api/calls/{id}`, `POST /api/calls/{id}/approve`
+- `GET/POST/PATCH /api/equipment`, `GET /api/equipment/{id}`, `GET /api/equipment/{id}/historico` (criação/edição por administrador)
+- `GET/POST /api/calls`, `GET/PATCH /api/calls/{id}`, `POST /api/calls/{id}/approve`, `POST /api/calls/{id}/atribuicoes`, `POST /api/calls/{id}/photo`
 - `GET/PATCH /api/work-orders`, `GET /api/work-orders/{id}`
 - `GET/POST /api/purchase-requests`, `PATCH /api/purchase-requests/{id}`
 - `GET /api/history` e `/api/indicators` (indicadores para administrador)
 - `GET /api/notifications`, `POST /api/notifications/read-all`, `PATCH /api/notifications/{id}/read`
 - `GET/PUT /api/unit-settings` (administrador)
-- `POST /api/calls/{id}/photo`, `POST /api/equipment/{id}/files`; arquivos servidos por rotas autenticadas
+- `GET /api/audit-logs` (administrador)
+- `POST /api/equipment/{id}/files`; arquivos servidos por rotas autenticadas
 
 ## Telas conectadas
 
@@ -107,3 +95,5 @@ Execute a verificação de sintaxe e os testes unitários antes de enviar altera
 .\.venv\Scripts\python.exe -m compileall -q main.py backend
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
+
+O teste de auditoria (`tests/test_audit.py`) é um teste de integração contra o Supabase e é automaticamente pulado quando não há conectividade de rede com o projeto configurado.
