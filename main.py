@@ -760,21 +760,82 @@ async def indicadores(request: Request):
     calls = db.client.table(C).select("*").execute().data
     orders = db.client.table(OS).select("*").execute().data
     equipment = db.client.table(E).select("*").execute().data
-    durations = []
+    equipment_map = {e["id"]: e for e in equipment}
+
+    # MTTR
+    repair_durations = []
     for o in orders:
         s, e = o.get("started_at"), o.get("finished_at")
         if s and e:
             try:
-                durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
+                repair_durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
             except Exception:
                 pass
+    mttr = round(sum(repair_durations) / len(repair_durations), 1) if repair_durations else None
+
+    # MTBF (média dos intervalos entre chamados por equipamento)
+    calls_by_equip = {}
+    for c in calls:
+        calls_by_equip.setdefault(c["equipment_id"], []).append(c)
+    mtbf_per_equip = []
+    for eq_calls in calls_by_equip.values():
+        if len(eq_calls) < 2:
+            continue
+        eq_calls.sort(key=lambda x: x.get("created_at") or "")
+        intervals = []
+        for i in range(1, len(eq_calls)):
+            try:
+                a = datetime.fromisoformat(str(eq_calls[i - 1].get("created_at")).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(eq_calls[i].get("created_at")).replace("Z", "+00:00"))
+                intervals.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+        if intervals:
+            mtbf_per_equip.append(sum(intervals) / len(intervals))
+    mtbf = round(sum(mtbf_per_equip) / len(mtbf_per_equip), 1) if mtbf_per_equip else None
+
+    # Disponibilidade aproximada: MTBF / (MTBF + MTTR) * 100
+    availability = None
+    if mtbf is not None and mttr is not None and (mtbf + mttr) > 0:
+        availability = round(mtbf / (mtbf + mttr) * 100, 1)
+
+    # Tempo médio de atendimento (lead time): abertura -> conclusão da OS
+    order_by_call = {o.get("call_id"): o for o in orders}
+    lead_times = []
+    for c in calls:
+        o = order_by_call.get(c["id"])
+        if o and o.get("finished_at") and c.get("created_at"):
+            try:
+                a = datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(o["finished_at"]).replace("Z", "+00:00"))
+                lead_times.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+    avg_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else None
+
+    completed = [o for o in orders if o["status"] == "Concluída"]
+    completion_rate = round(len(completed) / len(orders) * 100, 1) if orders else None
+
+    # Chamados por equipamento + ranking de falhas
+    calls_per_equip = []
+    for eq_id, eq_calls in calls_by_equip.items():
+        eq = equipment_map.get(eq_id, {})
+        calls_per_equip.append({"equipment_id": eq_id, "equipment_name": eq.get("name", "?"), "count": len(eq_calls)})
+    calls_per_equip.sort(key=lambda x: x["count"], reverse=True)
+    top_failing = calls_per_equip[:5]
+
     context = {
         "calls_total": len(calls),
         "backlog": sum(1 for c in calls if c["status"] not in ("Concluído", "Cancelado")),
         "equipment_total": len(equipment),
         "unavailable": sum(1 for e in equipment if e.get("state") == "Indisponível"),
-        "completion_rate": round(sum(1 for o in orders if o["status"] == "Concluída") / len(orders) * 100, 1) if orders else 0,
-        "mttr": round(sum(durations) / len(durations), 1) if durations else 0,
+        "completion_rate": completion_rate,
+        "mttr": mttr,
+        "mtbf": mtbf,
+        "availability": availability,
+        "avg_lead_time": avg_lead_time,
+        "calls_per_equipment": calls_per_equip,
+        "top_failing": top_failing,
     }
     return page(request, "indicadores/lista.html", role="administrator", context=context)
 

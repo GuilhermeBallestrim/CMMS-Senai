@@ -718,25 +718,88 @@ def indicators(_admin: dict = Depends(admin_only)):
     calls = db.client.table(C).select("*").execute().data
     open_calls = [c for c in calls if c["status"] not in ("Concluído", "Cancelado")]
     equipment = db.client.table(E).select("*").execute().data
+    equipment_map = {e["id"]: e for e in equipment}
     unavailable = [e for e in equipment if e.get("state") == "Indisponível"]
     orders = db.client.table(OS).select("*").execute().data
     completed = [o for o in orders if o["status"] == "Concluída"]
-    durations = []
+
+    # MTTR: tempo médio de reparo (início -> conclusão da OS).
+    repair_durations = []
     for o in orders:
         s, e = o.get("started_at"), o.get("finished_at")
         if s and e:
             try:
-                durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
+                repair_durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
             except Exception:
                 pass
-    mttr = round(sum(durations) / len(durations), 1) if durations else None
+    mttr = round(sum(repair_durations) / len(repair_durations), 1) if repair_durations else None
+
+    # MTBF: tempo médio entre falhas (por equipamento, média dos intervalos entre chamados).
+    # Agrupa chamados por equipamento ordenados por data de abertura.
+    calls_by_equip = {}
+    for c in calls:
+        calls_by_equip.setdefault(c["equipment_id"], []).append(c)
+    mtbf_per_equip = []
+    for eq_id, eq_calls in calls_by_equip.items():
+        if len(eq_calls) < 2:
+            continue
+        eq_calls.sort(key=lambda x: x.get("created_at") or "")
+        intervals = []
+        for i in range(1, len(eq_calls)):
+            try:
+                a = datetime.fromisoformat(str(eq_calls[i - 1].get("created_at")).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(eq_calls[i].get("created_at")).replace("Z", "+00:00"))
+                intervals.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+        if intervals:
+            mtbf_per_equip.append(sum(intervals) / len(intervals))
+    mtbf = round(sum(mtbf_per_equip) / len(mtbf_per_equip), 1) if mtbf_per_equip else None
+
+    # Disponibilidade aproximada: MTBF / (MTBF + MTTR) * 100.
+    availability = None
+    if mtbf is not None and mttr is not None and (mtbf + mttr) > 0:
+        availability = round(mtbf / (mtbf + mttr) * 100, 1)
+
+    # Tempo médio de atendimento (lead time): abertura do chamado -> conclusão da OS.
+    lead_times = []
+    order_by_call = {o.get("call_id"): o for o in orders}
+    for c in calls:
+        o = order_by_call.get(c["id"])
+        if o and o.get("finished_at") and c.get("created_at"):
+            try:
+                a = datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(o["finished_at"]).replace("Z", "+00:00"))
+                lead_times.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+    avg_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else None
+
     completion_rate = round(len(completed) / len(orders) * 100, 1) if orders else None
+
+    # Chamados por equipamento + ranking de falhas.
+    calls_per_equip = []
+    for eq_id, eq_calls in calls_by_equip.items():
+        eq = equipment_map.get(eq_id, {})
+        calls_per_equip.append({
+            "equipment_id": eq_id,
+            "equipment_name": eq.get("name", "?"),
+            "count": len(eq_calls),
+        })
+    calls_per_equip.sort(key=lambda x: x["count"], reverse=True)
+    top_failing = calls_per_equip[:5]
+
     return {
         "calls_total": len(calls),
         "backlog": len(open_calls),
         "equipment_total": len(equipment),
         "unavailable_equipment": len(unavailable),
         "mttr_hours": mttr,
+        "mtbf_hours": mtbf,
+        "availability_percent": availability,
         "completion_rate": completion_rate,
-        "insufficient_data": not bool(durations) or not orders,
+        "avg_lead_time_hours": avg_lead_time,
+        "calls_per_equipment": calls_per_equip,
+        "top_failing_equipment": top_failing,
+        "insufficient_data": not bool(repair_durations) or not orders,
     }
