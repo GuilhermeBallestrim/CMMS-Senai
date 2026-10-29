@@ -304,6 +304,11 @@ def update_call(call_id: int, payload: CallUpdate, db: Session = Depends(get_db)
     if user.role == "professor":
         if call.requester_id != user.id or payload.status != "Cancelado" or call.status != "Aberto":
             raise HTTPException(403, "Professor só pode cancelar o próprio chamado enquanto estiver aberto.")
+    elif payload.status != "Cancelado" or call.status != "Aberto":
+        raise HTTPException(
+            409,
+            "Use a aprovação do chamado e as atualizações da ordem de serviço para avançar o atendimento.",
+        )
     call.status = payload.status
     call.updated_at = utc_now()
     if old_status != call.status:

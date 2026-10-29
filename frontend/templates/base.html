@@ -35,6 +35,7 @@
     <div class="sidebar__bottom">
       <div class="sidebar__label">SISTEMA</div>{% if current_user.role == 'administrator' %}<a
       class="nav-link {{ 'nav-link--active' if active == 'configuracoes' else '' }}" href="/configuracoes">{{ ui_icon('settings') }}Configurações</a>
+      <a class="nav-link {{ 'nav-link--active' if active == 'auditoria' else '' }}" href="/auditoria">{{ ui_icon('history') }}Auditoria</a>
       {% endif %}<div class="sidebar__help">{{ ui_icon('help', 19, 'sidebar__help-icon') }}<span><strong>Precisa de
             ajuda?</strong><small>Consulte o suporte técnico</small></span><a href="mailto:suporte@senai.br"
           aria-label="Enviar e-mail ao suporte">{{ ui_icon('external', 15) }}</a></div>

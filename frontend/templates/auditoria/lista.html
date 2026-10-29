@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set active_page='auditoria' %}
+{% block title %}Auditoria · SENAI CMMS{% endblock %}
+{% block breadcrumb %}Auditoria{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">ADMINISTRAÇÃO</div><h1>Trilha de auditoria</h1><p>Últimas 200 ações administrativas registradas.</p></div></div>
+<section class="panel panel--table"><div class="table-wrap"><table><thead><tr><th>DATA</th><th>USUÁRIO</th><th>AÇÃO</th><th>REGISTRO</th><th>DETALHES</th></tr></thead><tbody>{% for entry in entries %}<tr><td>{{ local_datetime(entry.created_at, unit_settings.timezone_name) }}</td><td>{{ entry.actor.name if entry.actor else 'Conta removida' }}</td><td>{{ entry.action }}</td><td>{{ entry.entity_type }}{% if entry.entity_id %} #{{ entry.entity_id }}{% endif %}</td><td>{{ entry.details }}</td></tr>{% else %}<tr><td colspan="5">Nenhuma ação auditada ainda.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

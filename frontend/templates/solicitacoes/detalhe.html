@@ -1,31 +1,39 @@
-{% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='solicitacoes' %}{% block title %}SC-2025-018 · SENAI CMMS{% endblock %}{%
-block breadcrumb %}<a href="/solicitacoes">Solicitações</a> / SC-2025-018{% endblock %}{% block content %}<div
-    class="page-heading">
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon as ui_icon %}
+{% set active_page='solicitacoes' %}
+{% block title %}{{ purchase.number }} · SENAI CMMS{% endblock %}
+{% block breadcrumb %}<a href="/solicitacoes">Solicitações</a> / {{ purchase.number }}{% endblock %}
+{% block content %}
+<div class="page-heading">
     <div>
-        <div class="eyebrow">SOLICITAÇÃO · #SC-2025-018</div>
-        <h1>Rolamento SKF 6205</h1>
-        <p>Peças e componentes · Solicitado por Rafael Mendes</p>
-    </div><span class="status status--blue">Em análise</span>
+        <div class="eyebrow">SOLICITAÇÃO · #{{ purchase.number }}</div>
+        <h1>{{ purchase.item }}</h1>
+        <p>{{ purchase.item_type }} · Solicitado por {{ purchase.requester.name }}</p>
+    </div>
+    <span class="status {{ status_class(purchase.status) }}">{{ purchase.status }}</span>
 </div>
 <div class="detail-grid">
     <section class="panel detail-panel">
         <h2>Detalhes da solicitação</h2>
         <div class="detail-facts">
-            <div><small>TIPO</small><strong>Peças e componentes</strong></div>
-            <div><small>QUANTIDADE</small><strong>04 unidades</strong></div>
-            <div><small>SOLICITANTE</small><strong>Rafael Mendes</strong></div>
-            <div><small>DATA</small><strong>20 out 2025</strong></div>
+            <div><small>TIPO</small><strong>{{ purchase.item_type }}</strong></div>
+            <div><small>QUANTIDADE</small><strong>{{ purchase.quantity }} unidade(s)</strong></div>
+            <div><small>SOLICITANTE</small><strong>{{ purchase.requester.name }}</strong></div>
+            <div><small>DATA</small><strong>{{ local_datetime(purchase.created_at, unit_settings.timezone_name, '%d/%m/%Y') }}</strong></div>
+            {% if purchase.reviewed_by %}<div><small>ANALISADO POR</small><strong>{{ purchase.reviewed_by.name }}</strong></div>{% endif %}
         </div>
-        <div class="detail-description"><small>JUSTIFICATIVA</small>
-            <p>Necessário para substituição dos rolamentos do eixo principal do Torno CNC 01 durante manutenção
-                corretiva. O componente atual apresenta desgaste e vibração acima do limite operacional.</p>
-        </div>
+        <div class="detail-description"><small>JUSTIFICATIVA</small><p>{{ purchase.justification }}</p></div>
     </section>
+    {% if current_user.role == 'administrator' and purchase.status == 'Em análise' %}
     <aside class="panel detail-side">
         <h2>Aprovação</h2>
-        <p class="muted">Revise os dados antes de decidir sobre esta solicitação.</p><button
-            class="button button--primary button--full" data-action="Solicitação aprovada">{{ ui_icon('check', 16) }} Aprovar
-            solicitação</button><button class="button button--danger button--full"
-            data-action="Solicitação recusada">Recusar solicitação</button>
+        <p class="muted">Revise os dados antes de decidir sobre esta solicitação.</p>
+        <form action="/solicitacoes/{{ purchase.id }}/decidir" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="button button--primary button--full" name="decision" value="Aprovada" type="submit">{{ ui_icon('check', 16) }} Aprovar solicitação</button>
+            <button class="button button--danger button--full" name="decision" value="Recusada" type="submit">Recusar solicitação</button>
+        </form>
     </aside>
-</div>{% endblock %}
+    {% endif %}
+</div>
+{% endblock %}

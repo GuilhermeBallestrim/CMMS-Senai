@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set active_page='equipamentos' %}
+{% block title %}Editar equipamento · SENAI CMMS{% endblock %}
+{% block breadcrumb %}<a href="/equipamentos">Equipamentos</a> / <a href="/equipamentos/detalhe?id={{ equipment.id }}">{{ equipment.name }}</a> / Editar{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">ATIVOS</div><h1>Editar equipamento</h1><p>Atualize as informações cadastrais do ativo.</p></div></div>
+<form action="/equipamentos/{{ equipment.id }}/editar" method="post" class="form-layout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<section class="panel form-panel"><div class="form-section"><h2>Informações do equipamento</h2><div class="form-grid">
+<div class="field"><label for="name">Nome do equipamento *</label><input id="name" name="name" value="{{ equipment.name }}" required></div>
+<div class="field"><label for="sector">Setor *</label><select id="sector" name="sector_id" required>{% for sector in sectors %}<option value="{{ sector.id }}" {% if sector.id == equipment.sector_id %}selected{% endif %}>{{ sector.name }}</option>{% endfor %}</select></div>
+<div class="field"><label for="model">Modelo</label><input id="model" name="model_name" value="{{ equipment.model or '' }}"></div>
+<div class="field"><label for="asset">Patrimônio *</label><input id="asset" name="asset_tag" value="{{ equipment.asset_tag }}" required></div>
+<div class="field"><label for="serial">Número de série</label><input id="serial" name="serial_number" value="{{ equipment.serial_number or '' }}"></div>
+<div class="field"><label for="acquired">Data de aquisição</label><input id="acquired" name="acquired_at" type="date" value="{{ equipment.acquired_at.isoformat() if equipment.acquired_at else '' }}"></div>
+<div class="field"><label for="state">Estado atual</label><select id="state" name="state">{% for value in ['Disponível', 'Em manutenção', 'Indisponível'] %}<option {% if value == equipment.state %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
+</div></div><div class="form-actions"><a class="button button--secondary" href="/equipamentos/detalhe?id={{ equipment.id }}">Cancelar</a><button class="button button--primary" type="submit">Salvar alterações</button></div></section></form>
+{% endblock %}

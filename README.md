@@ -58,3 +58,12 @@ Os papéis aceitos são somente `professor` e `administrator` (apresentado na in
 Chamados, equipamentos, solicitações de compra, ordens de serviço, histórico, indicadores e configurações de usuários/setores usam os registros do SQLite. O professor vê e altera seus próprios chamados e pedidos; o administrador também pode cadastrar usuários/equipamentos/setores, aprovar chamados e pedidos e atualizar ordens de serviço.
 
 Notificações são criadas para chamados, atualizações de ordens e decisões de compras. As preferências da unidade salvam nome, fuso horário e aviso administrativo de novos chamados. Fotos aceitam JPEG, PNG ou WebP (até 10 MB); manuais aceitam PDF (até 20 MB). Os uploads ficam na pasta ignorada `uploads/` e exigem sessão para leitura.
+
+## Verificação
+
+Execute a verificação de sintaxe e os testes unitários antes de enviar alterações:
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q main.py backend
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```

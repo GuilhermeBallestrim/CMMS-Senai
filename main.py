@@ -6,6 +6,7 @@ import secrets
 from hmac import compare_digest
 from datetime import date, datetime, timedelta, timezone
 import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
@@ -23,7 +24,7 @@ from backend.config import settings
 from backend.database import Base, SessionLocal, engine, get_db, migrate_schema
 from backend.dependencies import get_current_user
 from backend.security import hash_password
-from backend.services import notify_administrators, notify_user
+from backend.services import log_audit, notify_administrators, notify_user
 from backend.storage import file_path, save_image, save_pdf
 from backend.security import verify_password
 
@@ -57,15 +58,24 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
-TZ_OFFSETS = {"America/Sao_Paulo": -3, "America/Manaus": -4, "America/Belem": -3,
-              "America/Fortaleza": -3, "America/Recife": -3, "America/Rio_Branco": -5, "UTC": 0}
-
-
+FALLBACK_TZ_OFFSETS = {
+    "America/Sao_Paulo": -3,
+    "America/Manaus": -4,
+    "America/Belem": -3,
+    "America/Fortaleza": -3,
+    "America/Recife": -3,
+    "America/Rio_Branco": -5,
+    "UTC": 0,
+}
 def format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
     if value is None:
         return "—"
     utc_value = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
-    local_zone = timezone(timedelta(hours=TZ_OFFSETS.get(zone_name, -3)))
+    try:
+        local_zone = ZoneInfo(zone_name)
+    except ZoneInfoNotFoundError:
+        # tzdata is required on Windows. Keep local pages usable if it was not installed yet.
+        local_zone = timezone(timedelta(hours=FALLBACK_TZ_OFFSETS.get(zone_name, -3)))
     return utc_value.astimezone(local_zone).strftime(pattern)
 
 
@@ -299,6 +309,7 @@ async def aprovar_chamado(request: Request, call_id: int, csrf_token: str = Form
             db.flush()
             call.status = "Em análise"
             notify_user(db, call.requester_id, "Chamado aprovado", f"{call.number} gerou a ordem {order.number}.", f"/chamados/detalhe?id={call.id}")
+            log_audit(db, user["id"], "approved", "maintenance_call", call.id, f"Aprovou {call.number} e gerou {order.number}.")
             db.commit()
     return RedirectResponse(f"/chamados/detalhe?id={call_id}&notice=Ordem%20de%20serviço%20gerada.", status_code=303)
 
@@ -320,6 +331,7 @@ async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = For
             notify_user(db, call.requester_id, "Chamado cancelado", f"{call.number} foi cancelado pelo administrador.", f"/chamados/detalhe?id={call.id}", "warning")
         else:
             notify_administrators(db, "Chamado cancelado", f"{call.number} foi cancelado pelo solicitante.", f"/chamados/detalhe?id={call.id}", "warning")
+        log_audit(db, user["id"], "cancelled", "maintenance_call", call.id, f"Cancelou o chamado {call.number}.")
         db.commit()
     return RedirectResponse("/chamados?notice=Chamado%20cancelado.", status_code=303)
 
@@ -366,6 +378,8 @@ async def criar_equipamento(
                                      photo_mime=photo_mime, manual_name=manual_name, manual_mime=manual_mime)
         db.add(equipment)
         try:
+            db.flush()
+            log_audit(db, user["id"], "created", "equipment", equipment.id, f"Cadastrou o equipamento {equipment.asset_tag}.")
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -380,6 +394,49 @@ async def detalhe_equipamento(request: Request, id: int | None = None):
         if not equipment:
             return RedirectResponse("/equipamentos?notice=Equipamento%20não%20encontrado.", status_code=303)
         return page(request, "equipamentos/detalhe.html", context={"equipment": equipment})
+
+
+@app.get("/equipamentos/{equipment_id}/editar")
+async def editar_equipamento_page(request: Request, equipment_id: int):
+    with SessionLocal() as db:
+        equipment = db.get(models.Equipment, equipment_id)
+        sectors = db.scalars(select(models.Sector).order_by(models.Sector.name)).all()
+        if not equipment:
+            return RedirectResponse("/equipamentos?notice=Equipamento%20não%20encontrado.", status_code=303)
+        return page(request, "equipamentos/editar.html", role="administrator", context={"equipment": equipment, "sectors": sectors})
+
+
+@app.post("/equipamentos/{equipment_id}/editar")
+async def editar_equipamento(
+    request: Request, equipment_id: int, name: str = Form(...), sector_id: int = Form(...), model_name: str = Form(""),
+    serial_number: str = Form(""), acquired_at: str = Form(""), asset_tag: str = Form(...), state: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem editar equipamentos.")
+    if state not in {"Disponível", "Em manutenção", "Indisponível"} or not 2 <= len(name.strip()) <= 120 or not 1 <= len(asset_tag.strip()) <= 80:
+        raise HTTPException(422, "Dados do equipamento inválidos.")
+    try:
+        acquired_date = date.fromisoformat(acquired_at) if acquired_at else None
+    except ValueError:
+        raise HTTPException(422, "Data de aquisição inválida.") from None
+    with SessionLocal() as db:
+        equipment = db.get(models.Equipment, equipment_id)
+        if not equipment or not db.get(models.Sector, sector_id):
+            raise HTTPException(404, "Equipamento ou setor não encontrado.")
+        equipment.name, equipment.sector_id, equipment.model = name.strip(), sector_id, model_name.strip() or None
+        equipment.serial_number, equipment.acquired_at = serial_number.strip() or None, acquired_date
+        equipment.asset_tag, equipment.state = asset_tag.strip(), state
+        try:
+            db.flush()
+            log_audit(db, user["id"], "updated", "equipment", equipment.id, f"Atualizou o equipamento {equipment.asset_tag}.")
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            return RedirectResponse(f"/equipamentos/{equipment_id}/editar?notice=Patrimônio%20já%20cadastrado.", status_code=303)
+    return RedirectResponse(f"/equipamentos/detalhe?id={equipment_id}&notice=Equipamento%20atualizado.", status_code=303)
 
 
 @app.get("/files/calls/{call_id}/photo")
@@ -451,6 +508,7 @@ async def salvar_ordem_servico(
         order.status, order.solution, order.notes = status, solution.strip() or None, notes.strip() or None
         order.defect, order.cause, order.parts = defect.strip() or None, cause.strip() or None, parts.strip() or None
         notify_user(db, order.call.requester_id, "Ordem de serviço atualizada", f"{order.number}: {order.status}.", f"/chamados/detalhe?id={order.call.id}")
+        log_audit(db, user["id"], "updated", "work_order", order.id, f"Atualizou {order.number} para {order.status}.")
         db.commit()
     return RedirectResponse(f"/ordens-servico/detalhe?id={order_id}&notice=Ordem%20atualizada.", status_code=303)
 
@@ -516,12 +574,22 @@ async def decidir_solicitacao(request: Request, request_id: int, decision: str =
             raise HTTPException(409, "Esta solicitação já foi analisada.")
         purchase.status, purchase.reviewed_by_id = decision, user["id"]
         notify_user(db, purchase.requester_id, "Solicitação analisada", f"{purchase.number}: {decision.lower()}.", "/solicitacoes")
+        log_audit(db, user["id"], "reviewed", "purchase_request", purchase.id, f"{purchase.number} marcada como {decision}.")
         db.commit()
     return RedirectResponse("/solicitacoes?notice=Decisão%20registrada.", status_code=303)
 
 
 @app.get("/solicitacoes/detalhe")
-async def detalhe_solicitacao(request: Request): return page(request, "solicitacoes/detalhe.html")
+async def detalhe_solicitacao(request: Request, id: int | None = None):
+    with SessionLocal() as db:
+        purchase = db.scalar(select(models.PurchaseRequest).options(
+            selectinload(models.PurchaseRequest.requester),
+            selectinload(models.PurchaseRequest.reviewed_by),
+        ).where(models.PurchaseRequest.id == id)) if id else None
+        user = request.session.get("user")
+        if not purchase or (user and user["role"] == "professor" and purchase.requester_id != user["id"]):
+            return RedirectResponse("/solicitacoes?notice=Solicitação%20não%20encontrada.", status_code=303)
+        return page(request, "solicitacoes/detalhe.html", context={"purchase": purchase, "status_class": status_class})
 
 
 @app.get("/indicadores")
@@ -538,6 +606,15 @@ async def indicadores(request: Request):
             "mttr": round(sum(elapsed) / len(elapsed), 1) if elapsed else 0,
         }
         return page(request, "indicadores/lista.html", role="administrator", context=context)
+
+
+@app.get("/auditoria")
+async def auditoria(request: Request):
+    with SessionLocal() as db:
+        entries = db.scalars(select(models.AuditLog).options(
+            selectinload(models.AuditLog.actor),
+        ).order_by(models.AuditLog.created_at.desc()).limit(200)).all()
+        return page(request, "auditoria/lista.html", role="administrator", context={"entries": entries})
 
 
 @app.get("/notificacoes")
@@ -610,6 +687,7 @@ async def salvar_preferencias(
         preferences.unit_name = unit_name.strip()
         preferences.timezone_name = timezone_name
         preferences.notify_admin_new_call = notify_admin_new_call
+        log_audit(db, user["id"], "updated", "unit_settings", 1, "Atualizou as preferências da unidade.")
         db.commit()
     return RedirectResponse("/configuracoes?notice=Preferências%20salvas.", status_code=303)
 
@@ -629,8 +707,11 @@ async def web_create_user(
             not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)):
         return RedirectResponse("/configuracoes?notice=Selecione%20um%20dos%20dois%20perfis%20e%20use%20senha%20com%20ao%20menos%2012%20caracteres.", status_code=303)
     with SessionLocal() as db:
-        db.add(models.User(name=name.strip(), email=email, password_hash=hash_password(password), role=role))
+        account = models.User(name=name.strip(), email=email, password_hash=hash_password(password), role=role)
+        db.add(account)
         try:
+            db.flush()
+            log_audit(db, user["id"], "created", "user", account.id, f"Cadastrou o usuário {account.email}.")
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -647,13 +728,58 @@ async def web_create_sector(request: Request, name: str = Form(...), csrf_token:
     if not 2 <= len(name.strip()) <= 100:
         return RedirectResponse("/configuracoes?notice=Informe%20um%20nome%20de%20setor%20válido.", status_code=303)
     with SessionLocal() as db:
-        db.add(models.Sector(name=name.strip()))
+        sector = models.Sector(name=name.strip())
+        db.add(sector)
         try:
+            db.flush()
+            log_audit(db, user["id"], "created", "sector", sector.id, f"Cadastrou o setor {sector.name}.")
             db.commit()
         except IntegrityError:
             db.rollback()
             return RedirectResponse("/configuracoes?notice=Esse%20setor%20já%20existe.", status_code=303)
     return RedirectResponse("/configuracoes?notice=Setor%20cadastrado.", status_code=303)
+
+
+@app.post("/configuracoes/setores/{sector_id}/excluir")
+async def web_delete_sector(request: Request, sector_id: int, csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem excluir setores.")
+    with SessionLocal() as db:
+        sector = db.get(models.Sector, sector_id)
+        if not sector:
+            raise HTTPException(404, "Setor não encontrado.")
+        if db.scalar(select(func.count(models.Equipment.id)).where(models.Equipment.sector_id == sector_id)):
+            return RedirectResponse("/configuracoes?notice=Não%20é%20possível%20excluir%20um%20setor%20com%20equipamentos.", status_code=303)
+        log_audit(db, user["id"], "deleted", "sector", sector.id, f"Excluiu o setor {sector.name}.")
+        db.delete(sector)
+        db.commit()
+    return RedirectResponse("/configuracoes?notice=Setor%20excluído.", status_code=303)
+
+
+@app.post("/configuracoes/usuarios/{user_id}/atualizar")
+async def web_update_user(
+    request: Request, user_id: int, role: str = Form(...), new_password: str = Form(""), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    admin = request.session.get("user")
+    if not admin or admin["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem gerenciar usuários.")
+    if role not in {"professor", "administrator"} or (new_password and len(new_password) < 12):
+        return RedirectResponse("/configuracoes?notice=Perfil%20ou%20senha%20inválidos.", status_code=303)
+    if user_id == admin["id"] and role != "administrator":
+        return RedirectResponse("/configuracoes?notice=Não%20é%20possível%20remover%20o%20próprio%20perfil%20de%20administrador.", status_code=303)
+    with SessionLocal() as db:
+        account = db.get(models.User, user_id)
+        if not account:
+            raise HTTPException(404, "Usuário não encontrado.")
+        account.role = role
+        if new_password:
+            account.password_hash = hash_password(new_password)
+        log_audit(db, admin["id"], "updated", "user", account.id, f"Atualizou o perfil de {account.email}." + (" Redefiniu a senha." if new_password else ""))
+        db.commit()
+    return RedirectResponse("/configuracoes?notice=Usuário%20atualizado.", status_code=303)
 
 
 @app.post("/configuracoes/usuarios/{user_id}/ativar")
@@ -669,5 +795,6 @@ async def web_set_user_active(request: Request, user_id: int, active: bool = For
         if account.id == admin["id"] and not active:
             raise HTTPException(400, "Não é possível desativar a própria conta.")
         account.is_active = active
+        log_audit(db, admin["id"], "activated" if active else "deactivated", "user", account.id, f"{'Ativou' if active else 'Desativou'} o usuário {account.email}.")
         db.commit()
     return RedirectResponse("/configuracoes?notice=Status%20do%20usuário%20atualizado.", status_code=303)
