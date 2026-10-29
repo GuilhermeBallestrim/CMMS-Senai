@@ -60,6 +60,16 @@ class EquipmentRead(ORMModel):
     created_at: datetime
 
 
+class EquipmentUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    sector_id: int | None = None
+    model: str | None = Field(default=None, max_length=120)
+    asset_tag: str | None = Field(default=None, min_length=1, max_length=80)
+    serial_number: str | None = Field(default=None, max_length=100)
+    state: Literal["Disponível", "Em manutenção", "Indisponível"] | None = None
+    responsible_id: int | None = None
+
+
 class CallCreate(BaseModel):
     equipment_id: int
     description: str = Field(min_length=10, max_length=5000)
@@ -123,6 +133,16 @@ class NotificationRead(ORMModel):
     href: str
     kind: str
     is_read: bool
+    created_at: datetime
+
+
+class AuditLogRead(ORMModel):
+    id: int
+    actor_id: int | None
+    action: str
+    entity_type: str
+    entity_id: int | None
+    details: str
     created_at: datetime
 
 

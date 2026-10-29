@@ -426,6 +426,16 @@ async def editar_equipamento(
         equipment = db.get(models.Equipment, equipment_id)
         if not equipment or not db.get(models.Sector, sector_id):
             raise HTTPException(404, "Equipamento ou setor não encontrado.")
+        if state != equipment.state:
+            active_order = db.scalar(select(models.WorkOrder.id).join(models.MaintenanceCall).where(
+                models.MaintenanceCall.equipment_id == equipment.id,
+                models.WorkOrder.status != "Concluída",
+            ))
+            if active_order:
+                return RedirectResponse(
+                    f"/equipamentos/{equipment_id}/editar?notice=O%20estado%20é%20controlado%20pela%20ordem%20de%20serviço%20ativa.",
+                    status_code=303,
+                )
         equipment.name, equipment.sector_id, equipment.model = name.strip(), sector_id, model_name.strip() or None
         equipment.serial_number, equipment.acquired_at = serial_number.strip() or None, acquired_date
         equipment.asset_tag, equipment.state = asset_tag.strip(), state

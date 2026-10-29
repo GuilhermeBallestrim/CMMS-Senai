@@ -13,14 +13,14 @@ from sqlalchemy.orm import Session
 
 from backend.database import get_db
 from backend.dependencies import get_current_user, require_roles
-from backend.models import Equipment, MaintenanceCall, Notification, PurchaseRequest, Sector, UnitSettings, User, WorkOrder, utc_now
+from backend.models import AuditLog, Equipment, MaintenanceCall, Notification, PurchaseRequest, Sector, UnitSettings, User, WorkOrder, utc_now
 from backend.schemas import (
-    CallCreate, CallRead, CallUpdate, EquipmentCreate, EquipmentRead, LoginRequest,
+    AuditLogRead, CallCreate, CallRead, CallUpdate, EquipmentCreate, EquipmentRead, EquipmentUpdate, LoginRequest,
     PurchaseCreate, PurchaseDecision, PurchaseRead, SectorCreate, SectorRead,
     UserCreate, UserRead, WorkOrderUpdate, NotificationRead, UnitSettingsRead, UnitSettingsUpdate,
 )
 from backend.security import hash_password, verify_password
-from backend.services import notify_administrators, notify_user
+from backend.services import log_audit, notify_administrators, notify_user
 from backend.storage import file_path, save_image, save_pdf
 
 
@@ -63,6 +63,11 @@ def list_notifications(db: Session = Depends(get_db), user: User = Depends(authe
     return db.scalars(select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc())).all()
 
 
+@router.get("/audit-logs", response_model=list[AuditLogRead])
+def list_audit_logs(db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+    return db.scalars(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(200)).all()
+
+
 @router.post("/notifications/read-all", status_code=204, dependencies=[Depends(csrf_header)])
 def read_all_notifications(db: Session = Depends(get_db), user: User = Depends(authenticated)):
     db.execute(update(Notification).where(Notification.user_id == user.id, Notification.is_read.is_(False)).values(is_read=True))
@@ -86,7 +91,7 @@ def get_unit_settings(db: Session = Depends(get_db), _admin: User = Depends(admi
 
 
 @router.put("/unit-settings", response_model=UnitSettingsRead, dependencies=[Depends(csrf_header)])
-def update_unit_settings(payload: UnitSettingsUpdate, db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+def update_unit_settings(payload: UnitSettingsUpdate, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
     valid_timezones = {"America/Sao_Paulo", "America/Manaus", "America/Belem", "America/Fortaleza", "America/Recife", "America/Rio_Branco", "UTC"}
     if payload.timezone_name not in valid_timezones:
         raise HTTPException(422, "Fuso horário não permitido.")
@@ -94,6 +99,7 @@ def update_unit_settings(payload: UnitSettingsUpdate, db: Session = Depends(get_
     settings.unit_name = payload.unit_name.strip()
     settings.timezone_name = payload.timezone_name
     settings.notify_admin_new_call = payload.notify_admin_new_call
+    log_audit(db, admin.id, "updated", "unit_settings", settings.id, "Atualizou as preferências da unidade pela API.")
     db.commit()
     return settings
 
@@ -105,6 +111,7 @@ async def upload_call_photo(call_id: int, photo: UploadFile = File(...), db: Ses
         raise HTTPException(404, "Chamado não encontrado.")
     filename, mime = await save_image(photo, "calls")
     call.photo_name, call.photo_mime = filename, mime
+    log_audit(db, user.id, "uploaded", "maintenance_call", call.id, f"Adicionou uma foto ao chamado {call.number} pela API.")
     db.commit()
     return None
 
@@ -112,7 +119,7 @@ async def upload_call_photo(call_id: int, photo: UploadFile = File(...), db: Ses
 @router.post("/equipment/{equipment_id}/files", status_code=204, dependencies=[Depends(csrf_header)])
 async def upload_equipment_files(
     equipment_id: int, photo: UploadFile | None = File(None), manual: UploadFile | None = File(None),
-    db: Session = Depends(get_db), _admin: User = Depends(admin_only),
+    db: Session = Depends(get_db), admin: User = Depends(admin_only),
 ):
     equipment = db.get(Equipment, equipment_id)
     if not equipment:
@@ -123,6 +130,7 @@ async def upload_equipment_files(
         equipment.photo_name, equipment.photo_mime = await save_image(photo, "equipment")
     if manual:
         equipment.manual_name, equipment.manual_mime = await save_pdf(manual, "equipment")
+    log_audit(db, admin.id, "uploaded", "equipment", equipment.id, f"Atualizou anexos do equipamento {equipment.asset_tag} pela API.")
     db.commit()
     return None
 
@@ -202,10 +210,16 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(admin_only)
 
 
 @router.post("/users", response_model=UserRead, status_code=201, dependencies=[Depends(csrf_header)])
-def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+def create_user(payload: UserCreate, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
     user = User(name=payload.name.strip(), email=str(payload.email).lower(), password_hash=hash_password(payload.password), role=payload.role)
     db.add(user)
-    commit_or_conflict(db, "Este e-mail já está cadastrado.")
+    try:
+        db.flush()
+        log_audit(db, admin.id, "created", "user", user.id, f"Cadastrou o usuário {user.email} pela API.")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Este e-mail já está cadastrado.") from exc
     db.refresh(user)
     return user
 
@@ -218,6 +232,7 @@ def set_user_active(user_id: int, active: bool, db: Session = Depends(get_db), a
     if user.id == admin.id and not active:
         raise HTTPException(400, "Não é possível desativar a própria conta administrativa.")
     user.is_active = active
+    log_audit(db, admin.id, "activated" if active else "deactivated", "user", user.id, f"{'Ativou' if active else 'Desativou'} {user.email} pela API.")
     db.commit()
     return user
 
@@ -228,10 +243,16 @@ def list_sectors(db: Session = Depends(get_db), _user: User = Depends(authentica
 
 
 @router.post("/sectors", response_model=SectorRead, status_code=201, dependencies=[Depends(csrf_header)])
-def create_sector(payload: SectorCreate, db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+def create_sector(payload: SectorCreate, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
     sector = Sector(name=payload.name.strip())
     db.add(sector)
-    commit_or_conflict(db, "Já existe um setor com este nome.")
+    try:
+        db.flush()
+        log_audit(db, admin.id, "created", "sector", sector.id, f"Cadastrou o setor {sector.name} pela API.")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Já existe um setor com este nome.") from exc
     db.refresh(sector)
     return sector
 
@@ -242,14 +263,20 @@ def list_equipment(db: Session = Depends(get_db), _user: User = Depends(authenti
 
 
 @router.post("/equipment", response_model=EquipmentRead, status_code=201, dependencies=[Depends(csrf_header)])
-def create_equipment(payload: EquipmentCreate, db: Session = Depends(get_db), _admin: User = Depends(admin_only)):
+def create_equipment(payload: EquipmentCreate, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
     if not db.get(Sector, payload.sector_id):
         raise HTTPException(422, "Setor não encontrado.")
     if payload.responsible_id and not db.get(User, payload.responsible_id):
         raise HTTPException(422, "Responsável não encontrado.")
     equipment = Equipment(**payload.model_dump())
     db.add(equipment)
-    commit_or_conflict(db, "Já existe um equipamento com este patrimônio.")
+    try:
+        db.flush()
+        log_audit(db, admin.id, "created", "equipment", equipment.id, f"Cadastrou o equipamento {equipment.asset_tag} pela API.")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Já existe um equipamento com este patrimônio.") from exc
     db.refresh(equipment)
     return equipment
 
@@ -259,6 +286,37 @@ def get_equipment(equipment_id: int, db: Session = Depends(get_db), _user: User 
     equipment = db.get(Equipment, equipment_id)
     if not equipment:
         raise HTTPException(404, "Equipamento não encontrado.")
+    return equipment
+
+
+@router.patch("/equipment/{equipment_id}", response_model=EquipmentRead, dependencies=[Depends(csrf_header)])
+def update_equipment(
+    equipment_id: int, payload: EquipmentUpdate, db: Session = Depends(get_db), admin: User = Depends(admin_only),
+):
+    equipment = db.get(Equipment, equipment_id)
+    if not equipment:
+        raise HTTPException(404, "Equipamento não encontrado.")
+    data = payload.model_dump(exclude_unset=True)
+    if "sector_id" in data and not db.get(Sector, data["sector_id"]):
+        raise HTTPException(422, "Setor não encontrado.")
+    if "responsible_id" in data and data["responsible_id"] is not None and not db.get(User, data["responsible_id"]):
+        raise HTTPException(422, "Responsável não encontrado.")
+    if "state" in data and data["state"] != equipment.state:
+        active_order = db.scalar(select(WorkOrder.id).join(MaintenanceCall).where(
+            MaintenanceCall.equipment_id == equipment.id, WorkOrder.status != "Concluída",
+        ))
+        if active_order:
+            raise HTTPException(409, "O estado do equipamento é controlado pela ordem de serviço ativa.")
+    for field, value in data.items():
+        setattr(equipment, field, value)
+    try:
+        db.flush()
+        log_audit(db, admin.id, "updated", "equipment", equipment.id, f"Atualizou o equipamento {equipment.asset_tag} pela API.")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Já existe um equipamento com este patrimônio.") from exc
+    db.refresh(equipment)
     return equipment
 
 
@@ -280,6 +338,7 @@ def create_call(payload: CallCreate, db: Session = Depends(get_db), user: User =
     preferences = get_or_create_unit_settings(db)
     if preferences.notify_admin_new_call:
         notify_administrators(db, "Novo chamado", f"{call.number}: {payload.priority} prioridade.", f"/chamados/detalhe?id={call.id}", "warning" if payload.priority in {"Alta", "Crítica"} else "info")
+    log_audit(db, user.id, "created", "maintenance_call", call.id, f"Abriu o chamado {call.number} pela API.")
     db.commit()
     db.refresh(call)
     return call
@@ -316,6 +375,7 @@ def update_call(call_id: int, payload: CallUpdate, db: Session = Depends(get_db)
             notify_administrators(db, "Chamado cancelado", f"{call.number} foi cancelado pelo solicitante.", f"/chamados/detalhe?id={call.id}", "warning")
         else:
             notify_user(db, call.requester_id, "Chamado atualizado", f"{call.number}: {call.status}.", f"/chamados/detalhe?id={call.id}")
+        log_audit(db, user.id, "cancelled", "maintenance_call", call.id, f"Cancelou o chamado {call.number} pela API.")
     db.commit()
     return call
 
@@ -334,6 +394,7 @@ def approve_call(call_id: int, db: Session = Depends(get_db), admin: User = Depe
     db.add(order)
     db.flush()
     notify_user(db, call.requester_id, "Chamado aprovado", f"{call.number} gerou a ordem {order.number}.", f"/chamados/detalhe?id={call.id}")
+    log_audit(db, admin.id, "approved", "maintenance_call", call.id, f"Aprovou {call.number} e gerou {order.number} pela API.")
     db.commit()
     db.refresh(order)
     return {"id": order.id, "number": order.number, "status": order.status}
@@ -375,6 +436,7 @@ def update_work_order(order_id: int, payload: WorkOrderUpdate, db: Session = Dep
         order.call.equipment.state = "Em manutenção"
     order.call.updated_at = utc_now()
     notify_user(db, order.call.requester_id, "Ordem de serviço atualizada", f"{order.number}: {order.status}.", f"/chamados/detalhe?id={order.call.id}")
+    log_audit(db, admin.id, "updated", "work_order", order.id, f"Atualizou {order.number} para {order.status} pela API.")
     db.commit()
     return order
 
@@ -391,7 +453,9 @@ def list_purchase_requests(db: Session = Depends(get_db), user: User = Depends(a
 def create_purchase_request(payload: PurchaseCreate, db: Session = Depends(get_db), user: User = Depends(authenticated)):
     request = PurchaseRequest(number=make_number("SC"), requester_id=user.id, **payload.model_dump())
     db.add(request)
+    db.flush()
     notify_administrators(db, "Nova solicitação de compra", f"{request.number}: {request.item}.", "/solicitacoes", "info")
+    log_audit(db, user.id, "created", "purchase_request", request.id, f"Criou a solicitação {request.number} pela API.")
     db.commit()
     db.refresh(request)
     return request
@@ -407,6 +471,7 @@ def decide_purchase_request(request_id: int, payload: PurchaseDecision, db: Sess
     request.status = payload.status
     request.reviewed_by_id = admin.id
     notify_user(db, request.requester_id, "Solicitação analisada", f"{request.number}: {request.status.lower()}.", "/solicitacoes")
+    log_audit(db, admin.id, "reviewed", "purchase_request", request.id, f"{request.number} marcada como {request.status} pela API.")
     db.commit()
     return request
 
