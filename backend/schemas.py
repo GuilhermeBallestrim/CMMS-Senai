@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-
 
 Role = Literal["professor", "administrator"]
 Priority = Literal["Baixa", "Média", "Alta", "Crítica"]
@@ -10,7 +9,7 @@ CallStatus = Literal["Aberto", "Em análise", "Em manutenção", "Aguardando pe�
 
 
 class ORMModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class UserCreate(BaseModel):

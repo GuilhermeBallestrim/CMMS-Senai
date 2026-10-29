@@ -8,7 +8,6 @@ from pathlib import Path
 
 
 def load_local_env() -> None:
-    """Load simple KEY=VALUE settings without requiring python-dotenv."""
     env_file = Path(__file__).resolve().parent.parent / ".env"
     if not env_file.exists():
         return
@@ -22,11 +21,19 @@ def load_local_env() -> None:
             os.environ.setdefault(key, value)
 
 
+def _as_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
-    database_url: str
+    supabase_url: str
+    supabase_key: str
     session_secret: str
     session_https_only: bool
+    debug: bool
 
 
 def load_settings() -> Settings:
@@ -43,9 +50,11 @@ def load_settings() -> Settings:
             stacklevel=2,
         )
     return Settings(
-        database_url=os.getenv("CMMS_DATABASE_URL", "sqlite:///./cmms.db"),
+        supabase_url=os.getenv("CMMS_SUPABASE_URL", ""),
+        supabase_key=os.getenv("CMMS_SUPABASE_KEY", ""),
         session_secret=secret,
         session_https_only=environment == "production",
+        debug=_as_bool(os.getenv("CMMS_DEBUG"), False),
     )
 
 

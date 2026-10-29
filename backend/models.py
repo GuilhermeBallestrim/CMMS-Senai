@@ -1,7 +1,16 @@
-from __future__ import annotations
+# Tabelas no Supabase. Os campos são definidos pelo schema SQL (supabase_schema.sql),
+# não por modelos ORM. Aqui só ficam constantes e tipos auxiliares.
 
-from datetime import date, datetime, timezone
+TABLE_USERS = "users"
+TABLE_SECTORS = "sectors"
+TABLE_EQUIPMENT = "equipment"
+TABLE_MAINTENANCE_CALLS = "maintenance_calls"
+TABLE_WORK_ORDERS = "work_orders"
+TABLE_PURCHASE_REQUESTS = "purchase_requests"
+TABLE_NOTIFICATIONS = "notifications"
+TABLE_UNIT_SETTINGS = "unit_settings"
 
+<<<<<<< HEAD
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -150,3 +159,12 @@ class UnitSettings(Base):
     unit_name: Mapped[str] = mapped_column(String(160), default="SENAI — São Paulo", nullable=False)
     timezone_name: Mapped[str] = mapped_column(String(80), default="America/Sao_Paulo", nullable=False)
     notify_admin_new_call: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+=======
+VALID_ROLES = ("professor", "administrator")
+VALID_CALL_STATUSES = ("Aberto", "Em análise", "Em manutenção", "Aguardando peça", "Concluído", "Cancelado")
+VALID_ORDER_STATUSES = ("Aguardando início", "Em execução", "Aguardando peça", "Concluída")
+VALID_PURCHASE_STATUSES = ("Em análise", "Aprovada", "Recusada")
+VALID_EQUIPMENT_STATES = ("Disponível", "Em manutenção", "Indisponível")
+VALID_PRIORITIES = ("Baixa", "Média", "Alta", "Crítica")
+VALID_ITEM_TYPES = ("Novas máquinas", "Ferramentas", "Peças e componentes")
+>>>>>>> 763faa02520857295d80a222e5a2a365debda955

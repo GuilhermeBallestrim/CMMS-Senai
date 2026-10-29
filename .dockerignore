@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.env
+.venv
+venv
+node_modules
+*.log
+*.zip
+uploads/
+cmms.db
+.pytest_cache
+.coverage
+.idea
+*.swp
