@@ -1,7 +1,10 @@
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .env
 cmms.db
 uploads/
+uvicorn.log
+uvicorn-error.log
