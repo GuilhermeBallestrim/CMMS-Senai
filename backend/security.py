@@ -1,4 +1,5 @@
 from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 
 
 password_hash = PasswordHash.recommended()
@@ -11,5 +12,5 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, stored_hash: str) -> bool:
     try:
         return password_hash.verify(password, stored_hash)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, UnknownHashError):
         return False
