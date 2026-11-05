@@ -2,6 +2,12 @@
 {% block content %}
 <div class="page-heading"><div><div class="eyebrow">EQUIPAMENTO · {{ equipment.asset_tag }}</div><h1>{{ equipment.name }}</h1><p>{{ equipment.model or 'Modelo não informado' }} · Setor de {{ equipment._sector.name if equipment._sector else equipment.sector.name }}</p></div><div class="page-heading__actions">{% if current_user.role == 'administrator' %}<a class="button button--secondary" href="/equipamentos/{{ equipment.id }}/editar">Editar equipamento</a>{% endif %}<span class="status {{ 'status--green' if equipment.state == 'Disponível' else 'status--orange' if equipment.state == 'Em manutenção' else 'status--red' }}">{{ equipment.state }}</span></div></div>
 
+<section class="metrics" aria-label="Indicadores do equipamento">
+<article class="metric-card"><div class="metric-card__top"><span>MTTR médio</span><span class="metric-card__icon metric-card__icon--blue">{{ ui_icon('clock',17) }}</span></div><strong class="metric-card__value">{{ equipment._mttr_avg }}h</strong><small class="metric-card__note">{{ equipment._mttr_count }} reparo(s) concluído(s)</small></article>
+<article class="metric-card"><div class="metric-card__top"><span>MTBF médio</span><span class="metric-card__icon metric-card__icon--green">{{ ui_icon('refresh',17) }}</span></div><strong class="metric-card__value">{{ equipment._mtbf_avg }}h</strong><small class="metric-card__note">Entre falhas</small></article>
+<article class="metric-card"><div class="metric-card__top"><span>Última conclusão</span><span class="metric-card__icon metric-card__icon--orange">{{ ui_icon('check',17) }}</span></div><strong class="metric-card__value">{{ equipment._last_finished }}</strong><small class="metric-card__note">Ordem de serviço</small></article>
+</section>
+
 <section class="panel detail-panel"><div class="panel__heading"><h2>Informações cadastrais</h2></div><div class="detail-facts"><div><small>SETOR</small><strong>{{ equipment._sector.name if equipment._sector else equipment.sector.name }}</strong></div><div><small>MODELO</small><strong>{{ equipment.model or '—' }}</strong></div><div><small>PATRIMÔNIO</small><strong>{{ equipment.asset_tag }}</strong></div><div><small>NÚMERO DE SÉRIE</small><strong>{{ equipment.serial_number or '—' }}</strong></div><div><small>DATA DE AQUISIÇÃO</small><strong>{{ equipment.acquired_at.strftime('%d/%m/%Y') if equipment.acquired_at else '—' }}</strong></div><div><small>CADASTRADO EM</small><strong>{{ equipment.created_at.strftime('%d/%m/%Y') }}</strong></div></div></section>
 
 {% if equipment.photo_name %}

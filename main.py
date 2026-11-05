@@ -59,6 +59,133 @@ US = TABLE_UNIT_SETTINGS
 TZ_OFFSETS = {"America/Sao_Paulo": -3, "America/Manaus": -4, "America/Belem": -3,
               "America/Fortaleza": -3, "America/Recife": -3, "America/Rio_Branco": -5, "UTC": 0}
 
+# Tipos de manutenção específicos por equipamento (nome exato do equipamento -> lista de tipos)
+EQUIPMENT_MAINTENANCE_TYPES = {
+    "Fresa 02": [
+        "Manutenção preventiva geral da fresa",
+        "Inspeção/troca das correias da fresa",
+        "Inspeção/troca das engrenagens da fresa",
+        "Manutenção do motor da fresa",
+        "Manutenção do sistema de avanço e altura da mesa da fresa",
+        "Manutenção do sistema de refrigeração da fresa",
+        "Inspeção/manutenção do sistema de lubrificação da fresa",
+        "Inspeção/troca dos dispositivos de segurança da fresa",
+        "Manutenção da morsa da fresa",
+    ],
+    "Torno 01": [
+        "Manutenção preventiva geral do torno",
+        "Inspeção/troca das correias do torno",
+        "Inspeção/troca das engrenagens do torno",
+        "Manutenção do motor do torno",
+        "Manutenção do sistema de avanço e altura da mesa do torno",
+        "Manutenção do sistema de refrigeração do torno",
+        "Inspeção/manutenção do sistema de lubrificação do torno",
+        "Inspeção/troca dos dispositivos de segurança do torno",
+        "Manutenção da placa de castanhas do torno",
+    ],
+    "Torno 02": [
+        "Manutenção preventiva geral do torno",
+        "Inspeção/troca das correias do torno",
+        "Inspeção/troca das engrenagens do torno",
+        "Manutenção do motor do torno",
+        "Manutenção do sistema de avanço e altura da mesa do torno",
+        "Manutenção do sistema de refrigeração do torno",
+        "Inspeção/manutenção do sistema de lubrificação do torno",
+        "Inspeção/troca dos dispositivos de segurança do torno",
+        "Manutenção da placa de castanhas do torno",
+    ],
+    "Furadeira 01": [
+        "manutenção preventiva geral da furadeira",
+        "inspeção/troca das correias da furadeira",
+        "Inspeção/troca das engrenagens da furadeira",
+        "Manutenção do motor da furadeira",
+        "manutenção do sistema de avanço e altura da mesa da furadeira",
+        "Manutenção do sistema de refrigeração da furadeira",
+        "inspeção/manutenção do sistema de lubrificação da furadeira",
+        "inspeção/troca dos dispositivos de segurança da furadeira",
+        "Manutenção da morsa da furadeira",
+    ],
+    "Furadeira 02": [
+        "manutenção preventiva geral da furadeira",
+        "inspeção/troca das correias da furadeira",
+        "Inspeção/troca das engrenagens da furadeira",
+        "Manutenção do motor da furadeira",
+        "manutenção do sistema de avanço e altura da mesa da furadeira",
+        "Manutenção do sistema de refrigeração da furadeira",
+        "inspeção/manutenção do sistema de lubrificação da furadeira",
+        "inspeção/troca dos dispositivos de segurança da furadeira",
+        "Manutenção da morsa da furadeira",
+    ],
+    "Injetora 01": [
+        "Manutenção preventiva geral da injetora",
+        "Inspeção/manutenção do sistema hidráulico da injetora",
+        "Inspeção/manutenção do sistema de lubrificação da injetora",
+        "Manutenção da unidade de injeção",
+        "Manutenção do bico de injeção",
+        "Inspeção/manutenção do sistema de aquecimento da unidade de injeção",
+        "Inspeção/manutenção do mecanismo de fechamento do molde",
+        "Inspeção/manutenção do sistema de movimentação da placa móvel",
+        "Inspeção/manutenção do sistema de extração",
+        "Inspeção/troca dos dispositivos de segurança da injetora",
+        "Manutenção do sistema de refrigeração do molde",
+    ],
+    "Injetora 02": [
+        "Manutenção preventiva geral da injetora",
+        "Inspeção/manutenção do sistema hidráulico da injetora",
+        "Inspeção/manutenção do sistema de lubrificação da injetora",
+        "Manutenção da unidade de injeção",
+        "Manutenção do bico de injeção",
+        "Inspeção/manutenção do sistema de aquecimento da unidade de injeção",
+        "Inspeção/manutenção do mecanismo de fechamento do molde",
+        "Inspeção/manutenção do sistema de movimentação da placa móvel",
+        "Inspeção/manutenção do sistema de extração",
+        "Inspeção/troca dos dispositivos de segurança da injetora",
+        "Manutenção do sistema de refrigeração do molde",
+    ],
+    "Sopradora 01": [
+        "Manutenção preventiva geral da máquina de sopro",
+        "Inspeção/manutenção do sistema hidráulico da máquina de sopro",
+        "Inspeção/manutenção do sistema de lubrificação da máquina de sopro",
+        "Manutenção do motor da máquina de sopro",
+        "Manutenção do sistema de extrusão",
+        "Inspeção/manutenção do sistema de aquecimento da extrusora",
+        "Inspeção/manutenção do sistema de corte do parison",
+        "Inspeção/manutenção das placas de fechamento dos moldes",
+        "Manutenção do sistema de sopro",
+        "Inspeção/manutenção do sistema de refrigeração dos moldes",
+        "Inspeção/manutenção do sistema pneumático",
+        "Inspeção/troca dos dispositivos de segurança da máquina de sopro",
+    ],
+    "Termoformadora SUPRAVAC-2": [
+        "Manutenção preventiva geral da SUPRAVAC-2",
+        "Inspeção/manutenção do sistema de aquecimento dos fornos",
+        "Inspeção/manutenção do sistema de controle de temperatura",
+        "Inspeção/manutenção do sistema de vácuo",
+        "Manutenção das bombas",
+        "Inspeção/manutenção do sistema de ar comprimido",
+        "Inspeção/manutenção do sistema de desmoldagem",
+        "Manutenção do sistema de movimentação da mesa",
+        "Inspeção/manutenção do sistema de resfriamento",
+        "Inspeção/manutenção do sistema pneumático",
+        "Inspeção/troca dos dispositivos de segurança",
+    ],
+    "Extrusora de Filme 01": [
+        "Manutenção preventiva geral da extrusora de filme",
+        "Inspeção/manutenção do sistema de extrusão",
+        "Inspeção/manutenção da rosca e cilindro de extrusão",
+        "Inspeção/troca das correias",
+        "Inspeção/manutenção das engrenagens",
+        "Manutenção do motor e motorredutor",
+        "Inspeção/manutenção do sistema de aquecimento",
+        "Inspeção/manutenção dos sensores de temperatura",
+        "Manutenção do cabeçote e matriz de extrusão",
+        "Inspeção/manutenção do sistema de refrigeração",
+        "Inspeção/manutenção do sistema pneumático",
+        "Inspeção/manutenção do sistema de lubrificação",
+        "Inspeção/troca dos dispositivos de segurança",
+    ],
+}
+
 
 def format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
     if value is None:
@@ -225,28 +352,8 @@ async def dashboard(request: Request):
     open_count = sum(1 for c in calls if c["status"] not in ("Concluído", "Cancelado"))
     analysis_count = sum(1 for c in calls if c["status"] in ("Aberto", "Em análise"))
     completed_count = sum(1 for c in calls if c["status"] == "Concluído")
-    orders = db.client.table(OS).select("*").neq("status", "Concluída").order("id", desc=True).execute().data
-    def _order_snippet(o):
-        call, eq = _order_call_equipment(o)
-        return {**o, "_equipment_name": eq["name"] if eq else "?", "_call_number": call["number"] if call else "?"}
-    orders = [_order_snippet(o) for o in orders]
 
-    def _call_snippet(c):
-        equip = db.client.table(E).select("*").eq("id", c["equipment_id"]).execute().data
-        requester = db.client.table(U).select("*").eq("id", c["requester_id"]).execute().data
-        sector = None
-        if equip and equip[0].get("sector_id"):
-            sec = db.client.table(S).select("*").eq("id", equip[0]["sector_id"]).execute().data
-            sector = sec[0]["name"] if sec else "?"
-        return {**c,
-                "_equipment_name": equip[0]["name"] if equip else "?",
-                "_equipment_id": equip[0]["id"] if equip else None,
-                "_sector_name": sector,
-                "_requester_name": requester[0]["name"] if requester else "?"}
-    calls_snippet = [_call_snippet(c) for c in calls]
-    active_orders = orders[:4]
-
-    # Chamados abertos detalhados para a página inicial
+    # Chamados abertos detalhados para o dashboard (formato solicitado)
     prefs = _unit_preferences()
     unit_tz = prefs.get("timezone_name", "America/Sao_Paulo")
 
@@ -258,10 +365,10 @@ async def dashboard(request: Request):
         if not equip:
             continue
         e = equip[0]
-        sec = None
+        sec_name = "?"
         if e.get("sector_id"):
             s = db.client.table(S).select("*").eq("id", e["sector_id"]).execute().data
-            sec = s[0]["name"] if s else "?"
+            sec_name = s[0]["name"] if s else "?"
         # Tipo de trabalho: usa problem_type ou description
         trabalho = c.get("problem_type") or c.get("description", "")[:60]
         tipo = "Preventiva" if c.get("problem_type") else "Corretiva"
@@ -280,7 +387,7 @@ async def dashboard(request: Request):
                 resp_name = r[0]["name"]
         open_calls_detail.append({
             "equipment": e["name"],
-            "sector": sec or "?",
+            "sector": sec_name,
             "trabalho": trabalho,
             "tipo": tipo,
             "prioridade": prioridade,
@@ -291,46 +398,11 @@ async def dashboard(request: Request):
             "_call_number": c.get("number", ""),
         })
 
-    # Calcular MTTR e MTBF por equipamento (apenas ordens concluídas)
-    equipment_metrics = {}
-    all_orders = db.client.table(OS).select("*").execute().data
-    for o in all_orders:
-        if o.get("status") != "Concluída" or not o.get("call_id"):
-            continue
-        call = db.client.table(C).select("*").eq("id", o["call_id"]).execute().data
-        if not call:
-            continue
-        eq_id = call[0].get("equipment_id")
-        if not eq_id:
-            continue
-        started = o.get("started_at")
-        finished = o.get("finished_at")
-        if not started or not finished:
-            continue
-        try:
-            started_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
-            finished_dt = datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
-            mttr_hours = (finished_dt - started_dt).total_seconds() / 3600
-        except Exception:
-            continue
-        if eq_id not in equipment_metrics:
-            equipment_metrics[eq_id] = {"mttr": [], "mtbf": [], "last_finished": None}
-        equipment_metrics[eq_id]["mttr"].append(mttr_hours)
-        equipment_metrics[eq_id]["last_finished"] = finished_dt
-
-    # MTBF: tempo entre conclusões consecutivas
-    for eq_id, m in equipment_metrics.items():
-        m["mttr_avg"] = round(sum(m["mttr"]) / len(m["mttr"]), 1) if m["mttr"] else 0
-        m["mtbf_hours"] = 0
-        m["equipment_name"] = db.client.table(E).select("name").eq("id", eq_id).execute().data[0]["name"]
-
     return page(request, "dashboard.html", context={
-        "recent_calls": calls_snippet[:5], "open_count": open_count, "analysis_count": analysis_count,
-        "completed_count": completed_count, "total_calls": len(calls), "active_orders": active_orders,
-        "priority_counts": {p: sum(1 for c in calls if c["priority"] == p and c["status"] not in ("Concluído", "Cancelado")) for p in ("Crítica", "Alta", "Média", "Baixa")},
+        "open_count": open_count, "analysis_count": analysis_count,
+        "completed_count": completed_count, "total_calls": len(calls),
         "status_class": status_class,
         "open_calls_detail": open_calls_detail,
-        "equipment_metrics": equipment_metrics,
     })
 
 
@@ -371,7 +443,15 @@ async def chamados(request: Request, page_num: int = 1):
 @app.get("/chamados/novo")
 async def novo_chamado(request: Request):
     equipment = db.client.table(E).select("*").order("name").execute().data
-    return page(request, "chamados/novo.html", context={"equipment_items": equipment})
+    # Monta tipos de manutenção por equipamento para o frontend filtrar via JS
+    equipment_maintenance = {}
+    for eq in equipment:
+        eq_name = eq["name"]
+        equipment_maintenance[eq_name] = EQUIPMENT_MAINTENANCE_TYPES.get(eq_name, [])
+    return page(request, "chamados/novo.html", context={
+        "equipment_items": equipment,
+        "equipment_maintenance_types": equipment_maintenance,
+    })
 
 
 @app.post("/chamados", name="criar_chamado")
@@ -592,6 +672,45 @@ async def detalhe_equipamento(request: Request, id: int | None = None):
             "finished_at": local_datetime(order.get("finished_at"), unit_tz, "%d/%m/%Y %H:%M") if order and order.get("finished_at") else None,
         })
     equipment["_history"] = history
+
+    # MTTR e MTBF para este equipamento específico
+    completed_orders = db.client.table(OS).select("*").eq("status", "Concluída").execute().data or []
+    mttr_hours = []
+    last_finished = None
+    for o in completed_orders:
+        call = db.client.table(C).select("*").eq("id", o["call_id"]).execute().data
+        if not call or call[0].get("equipment_id") != id:
+            continue
+        started = o.get("started_at")
+        finished = o.get("finished_at")
+        if not started or not finished:
+            continue
+        try:
+            started_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            finished_dt = datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+            mttr_hours.append((finished_dt - started_dt).total_seconds() / 3600)
+            if last_finished is None or finished_dt > last_finished:
+                last_finished = finished_dt
+        except Exception:
+            pass
+
+    equipment["_mttr_avg"] = round(sum(mttr_hours) / len(mttr_hours), 1) if mttr_hours else 0
+    equipment["_mttr_count"] = len(mttr_hours)
+    equipment["_last_finished"] = local_datetime(last_finished, unit_tz, "%d/%m/%Y %H:%M") if last_finished else "—"
+
+    # MTBF: tempo médio entre chamados concluídos deste equipamento
+    concluded_calls = []
+    for c in calls:
+        if c.get("status") == "Concluído" and c.get("created_at"):
+            try:
+                concluded_calls.append(datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00")))
+            except Exception:
+                pass
+    concluded_calls.sort()
+    mtbf_intervals = []
+    for i in range(1, len(concluded_calls)):
+        mtbf_intervals.append((concluded_calls[i] - concluded_calls[i - 1]).total_seconds() / 3600)
+    equipment["_mtbf_avg"] = round(sum(mtbf_intervals) / len(mtbf_intervals), 1) if mtbf_intervals else 0
 
     return page(request, "equipamentos/detalhe.html", context={"equipment": equipment})
 
@@ -886,87 +1005,8 @@ async def detalhe_solicitacao(request: Request, id: int | None = None):
 
 @app.get("/indicadores")
 async def indicadores(request: Request):
-    calls = db.client.table(C).select("*").execute().data
-    orders = db.client.table(OS).select("*").execute().data
-    equipment = db.client.table(E).select("*").execute().data
-    equipment_map = {e["id"]: e for e in equipment}
-
-    # MTTR
-    repair_durations = []
-    for o in orders:
-        s, e = o.get("started_at"), o.get("finished_at")
-        if s and e:
-            try:
-                repair_durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
-            except Exception:
-                pass
-    mttr = round(sum(repair_durations) / len(repair_durations), 1) if repair_durations else None
-
-    # MTBF (média dos intervalos entre chamados por equipamento)
-    calls_by_equip = {}
-    for c in calls:
-        calls_by_equip.setdefault(c["equipment_id"], []).append(c)
-    mtbf_per_equip = []
-    for eq_calls in calls_by_equip.values():
-        if len(eq_calls) < 2:
-            continue
-        eq_calls.sort(key=lambda x: x.get("created_at") or "")
-        intervals = []
-        for i in range(1, len(eq_calls)):
-            try:
-                a = datetime.fromisoformat(str(eq_calls[i - 1].get("created_at")).replace("Z", "+00:00"))
-                b = datetime.fromisoformat(str(eq_calls[i].get("created_at")).replace("Z", "+00:00"))
-                intervals.append((b - a).total_seconds() / 3600)
-            except Exception:
-                pass
-        if intervals:
-            mtbf_per_equip.append(sum(intervals) / len(intervals))
-    mtbf = round(sum(mtbf_per_equip) / len(mtbf_per_equip), 1) if mtbf_per_equip else None
-
-    # Disponibilidade aproximada: MTBF / (MTBF + MTTR) * 100
-    availability = None
-    if mtbf is not None and mttr is not None and (mtbf + mttr) > 0:
-        availability = round(mtbf / (mtbf + mttr) * 100, 1)
-
-    # Tempo médio de atendimento (lead time): abertura -> conclusão da OS
-    order_by_call = {o.get("call_id"): o for o in orders}
-    lead_times = []
-    for c in calls:
-        o = order_by_call.get(c["id"])
-        if o and o.get("finished_at") and c.get("created_at"):
-            try:
-                a = datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00"))
-                b = datetime.fromisoformat(str(o["finished_at"]).replace("Z", "+00:00"))
-                lead_times.append((b - a).total_seconds() / 3600)
-            except Exception:
-                pass
-    avg_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else None
-
-    completed = [o for o in orders if o["status"] == "Concluída"]
-    completion_rate = round(len(completed) / len(orders) * 100, 1) if orders else None
-
-    # Chamados por equipamento + ranking de falhas
-    calls_per_equip = []
-    for eq_id, eq_calls in calls_by_equip.items():
-        eq = equipment_map.get(eq_id, {})
-        calls_per_equip.append({"equipment_id": eq_id, "equipment_name": eq.get("name", "?"), "count": len(eq_calls)})
-    calls_per_equip.sort(key=lambda x: x["count"], reverse=True)
-    top_failing = calls_per_equip[:5]
-
-    context = {
-        "calls_total": len(calls),
-        "backlog": sum(1 for c in calls if c["status"] not in ("Concluído", "Cancelado")),
-        "equipment_total": len(equipment),
-        "unavailable": sum(1 for e in equipment if e.get("state") == "Indisponível"),
-        "completion_rate": completion_rate,
-        "mttr": mttr,
-        "mtbf": mtbf,
-        "availability": availability,
-        "avg_lead_time": avg_lead_time,
-        "calls_per_equipment": calls_per_equip,
-        "top_failing": top_failing,
-    }
-    return page(request, "indicadores/lista.html", role="administrator", context=context)
+    # Indicadores foram movidos para o dashboard e para o detalhe de cada equipamento
+    return RedirectResponse("/dashboard", status_code=303)
 
 
 # --------------------------------------------------
