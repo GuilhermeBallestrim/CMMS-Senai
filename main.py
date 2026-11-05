@@ -188,7 +188,7 @@ EQUIPMENT_MAINTENANCE_TYPES = {
 }
 
 
-def format_format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
+def format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
     if value is None:
         return "—"
     try:
