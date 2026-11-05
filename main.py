@@ -251,9 +251,9 @@ async def dashboard(request: Request):
 # --------------------------------------------------
 
 @app.get("/chamados")
-async def chamados(request: Request, page: int = 1):
+async def chamados(request: Request, page_num: int = 1):
     PAGE_SIZE = 20
-    page = max(page, 1)
+    page_num = max(page_num, 1)
     items = db.client.table(C).select("*").order("created_at", desc=True).execute().data
     user = request.session.get("user")
     if user and user["role"] == "professor":
@@ -270,13 +270,13 @@ async def chamados(request: Request, page: int = 1):
             counts[call["status"]] += 1
     total = len(items)
     total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
-    page = min(page, total_pages)
-    start = (page - 1) * PAGE_SIZE
+    page_num = min(page_num, total_pages)
+    start = (page_num - 1) * PAGE_SIZE
     page_items = items[start:start + PAGE_SIZE]
     return page(request, "chamados/lista.html", context={
         "calls": page_items, "call_counts": counts, "status_class": status_class,
-        "page": page, "total_pages": total_pages, "total": total,
-        "has_prev": page > 1, "has_next": page < total_pages,
+        "page": page_num, "total_pages": total_pages, "total": total,
+        "has_prev": page_num > 1, "has_next": page_num < total_pages,
     })
 
 
@@ -397,9 +397,9 @@ async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = For
 # --------------------------------------------------
 
 @app.get("/equipamentos")
-async def equipamentos(request: Request, page: int = 1):
+async def equipamentos(request: Request, page_num: int = 1):
     PAGE_SIZE = 20
-    page = max(page, 1)
+    page_num = max(page_num, 1)
     items = db.client.table(E).select("*").order("name").execute().data
     for e in items:
         sec = db.client.table(S).select("*").eq("id", e["sector_id"]).execute().data
@@ -408,13 +408,13 @@ async def equipamentos(request: Request, page: int = 1):
         e["_responsible"] = resp_user[0] if resp_user else None
     total = len(items)
     total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
-    page = min(page, total_pages)
-    start = (page - 1) * PAGE_SIZE
+    page_num = min(page_num, total_pages)
+    start = (page_num - 1) * PAGE_SIZE
     page_items = items[start:start + PAGE_SIZE]
     return page(request, "equipamentos/lista.html", context={
         "equipment_items": page_items,
-        "page": page, "total_pages": total_pages, "total": total,
-        "has_prev": page > 1, "has_next": page < total_pages,
+        "page": page_num, "total_pages": total_pages, "total": total,
+        "has_prev": page_num > 1, "has_next": page_num < total_pages,
     })
 
 
@@ -559,21 +559,21 @@ def _order_snippet(o):
 
 
 @app.get("/ordens-servico")
-async def ordens_servico(request: Request, page: int = 1):
+async def ordens_servico(request: Request, page_num: int = 1):
     PAGE_SIZE = 20
-    page = max(page, 1)
+    page_num = max(page_num, 1)
     items = db.client.table(OS).select("*").order("id", desc=True).execute().data
     items = [_order_snippet(o) for o in items]
     counts = {s: sum(1 for i in items if i["status"] == s) for s in ("Aguardando início", "Em execução", "Concluída")}
     total = len(items)
     total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
-    page = min(page, total_pages)
-    start = (page - 1) * PAGE_SIZE
+    page_num = min(page_num, total_pages)
+    start = (page_num - 1) * PAGE_SIZE
     page_items = items[start:start + PAGE_SIZE]
     return page(request, "ordens_servico/lista.html", roles=["administrator", "tecnico"], context={
         "work_orders": page_items, "order_counts": counts,
-        "page": page, "total_pages": total_pages, "total": total,
-        "has_prev": page > 1, "has_next": page < total_pages,
+        "page": page_num, "total_pages": total_pages, "total": total,
+        "has_prev": page_num > 1, "has_next": page_num < total_pages,
     })
 
 
@@ -667,9 +667,9 @@ def _sc_snippet(r):
 
 
 @app.get("/solicitacoes")
-async def solicitacoes(request: Request, page: int = 1):
+async def solicitacoes(request: Request, page_num: int = 1):
     PAGE_SIZE = 20
-    page = max(page, 1)
+    page_num = max(page_num, 1)
     items = db.client.table(SC).select("*").order("created_at", desc=True).execute().data
     user = request.session.get("user")
     if user and user["role"] == "professor":
@@ -677,13 +677,13 @@ async def solicitacoes(request: Request, page: int = 1):
     items = [_sc_snippet(r) for r in items]
     total = len(items)
     total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
-    page = min(page, total_pages)
-    start = (page - 1) * PAGE_SIZE
+    page_num = min(page_num, total_pages)
+    start = (page_num - 1) * PAGE_SIZE
     page_items = items[start:start + PAGE_SIZE]
     return page(request, "solicitacoes/lista.html", context={
         "purchase_requests": page_items, "status_class": status_class,
-        "page": page, "total_pages": total_pages, "total": total,
-        "has_prev": page > 1, "has_next": page < total_pages,
+        "page": page_num, "total_pages": total_pages, "total": total,
+        "has_prev": page_num > 1, "has_next": page_num < total_pages,
     })
 
 
