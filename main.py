@@ -188,7 +188,7 @@ EQUIPMENT_MAINTENANCE_TYPES = {
 }
 
 
-def format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
+def format_format_local_datetime(value: datetime | None, zone_name: str, pattern: str = "%d/%m/%Y %H:%M") -> str:
     if value is None:
         return "—"
     try:
@@ -393,7 +393,7 @@ async def dashboard(request: Request):
             "tipo": tipo,
             "prioridade": prioridade,
             "status": status,
-            "solicitado_em": local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y") if c.get("created_at") else "?",
+            "solicitado_em": format_local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y") if c.get("created_at") else "?",
             "responsavel": resp_name,
             "_call_id": c["id"],
             "_call_number": c.get("number", ""),
@@ -675,10 +675,10 @@ async def detalhe_equipamento(request: Request, id: int | None = None):
             "problem_type": c.get("problem_type") or "—",
             "status": status_display,
             "priority": c.get("priority", "—"),
-            "created_at": local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y %H:%M") if c.get("created_at") else "?",
+            "created_at": format_local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y %H:%M") if c.get("created_at") else "?",
             "requester": requester_name,
             "solution": order.get("solution") if order else None,
-            "finished_at": local_datetime(order.get("finished_at"), unit_tz, "%d/%m/%Y %H:%M") if order and order.get("finished_at") else None,
+            "finished_at": format_local_datetime(order.get("finished_at"), unit_tz, "%d/%m/%Y %H:%M") if order and order.get("finished_at") else None,
         })
     equipment["_history"] = history
 
@@ -705,7 +705,7 @@ async def detalhe_equipamento(request: Request, id: int | None = None):
 
     equipment["_mttr_avg"] = round(sum(mttr_hours) / len(mttr_hours), 1) if mttr_hours else 0
     equipment["_mttr_count"] = len(mttr_hours)
-    equipment["_last_finished"] = local_datetime(last_finished, unit_tz, "%d/%m/%Y %H:%M") if last_finished else "—"
+    equipment["_last_finished"] = format_local_datetime(last_finished, unit_tz, "%d/%m/%Y %H:%M") if last_finished else "—"
 
     # MTBF: tempo médio entre chamados concluídos deste equipamento
     concluded_calls = []

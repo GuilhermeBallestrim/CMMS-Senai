@@ -34,7 +34,7 @@ def post(path, data_dict):
         return None, f"EXCECAO: {type(e).__name__}: {e}", {}
 
 print("=" * 60)
-print("TESTE: Login com teste@teste.com")
+print("TESTE 1: Login com teste@teste.com")
 print("=" * 60)
 status, body, headers = get('/login')
 csrf_match = re.search(r'name="csrf_token"[^>]*value="([^"]*)"', body)
@@ -50,12 +50,12 @@ if csrf_match:
     if status == 303:
         print(f"  SUCESSO! Redirecionou para: {headers.get('Location', 'N/A')}")
     elif status == 200:
-        print(f"  Login falhou (senha incorreta)")
+        print(f"  Login falhou")
     elif status == 500:
         print(f"  ERRO 500: {body[:500]}")
 
 print("\n" + "=" * 60)
-print("TESTE: GET /equipamentos (logado)")
+print("TESTE 2: GET /equipamentos (logado)")
 print("=" * 60)
 status, body, headers = get('/equipamentos')
 print(f"GET /equipamentos: Status {status}")
@@ -63,14 +63,12 @@ if status == 500:
     print(f"  ERRO 500: {body[:800]}")
 elif status == 200:
     if 'Fresa 02' in body:
-        print("  Equipamento 'Fresa 02' encontrado no HTML - SUCESSO!")
+        print("  Equipamento 'Fresa 02' encontrado - SUCESSO!")
     if 'Nenhum equipamento' in body:
         print("  Mensagem 'Nenhum equipamento cadastrado'")
-    if 'Equipamentos' in body:
-        print("  Título 'Equipamentos' encontrado")
 
 print("\n" + "=" * 60)
-print("TESTE: GET /chamados/novo (logado)")
+print("TESTE 3: GET /chamados/novo (logado)")
 print("=" * 60)
 status, body, headers = get('/chamados/novo')
 print(f"GET /chamados/novo: Status {status}")
@@ -80,12 +78,10 @@ elif status == 200:
     csrf_match2 = re.search(r'name="csrf_token"[^>]*value="([^"]*)"', body)
     equipamentos = re.findall(r'<option value="(\d+)">([^<]+)</option>', body)
     print(f"CSRF: {'OK' if csrf_match2 else 'FALHA'}")
-    print(f"Equipamentos no select: {len(equipamentos)}")
-    for e in equipamentos:
-        print(f"  - {e[1]} (id={e[0]})")
+    print(f"Equipamentos: {len(equipamentos)}")
 
 print("\n" + "=" * 60)
-print("TESTE: POST /chamados (logado)")
+print("TESTE 4: POST /chamados (logado)")
 print("=" * 60)
 status, body, headers = get('/chamados/novo')
 csrf_match = re.search(r'name="csrf_token"[^>]*value="([^"]*)"', body)
@@ -112,16 +108,13 @@ if csrf_match and equipamentos:
         print(f"  SUCESSO! Redirecionou para: {headers.get('Location', 'N/A')}")
     else:
         print(f"  Status: {status}")
-        print(f"  Body: {body[:200]}")
-elif not equipamentos:
-    print("  Nenhum equipamento - não consigo testar POST")
 
 print("\n" + "=" * 60)
-print("TESTE: GET /dashboard (logado)")
+print("TESTE 5: GET /dashboard (logado)")
 print("=" * 60)
 status, body, headers = get('/dashboard')
 print(f"GET /dashboard: Status {status}")
 if status == 500:
     print(f"  ERRO 500: {body[:800]}")
 elif status == 200:
-    print("  Dashboard carregado com sucesso")
+    print("  Dashboard OK")
