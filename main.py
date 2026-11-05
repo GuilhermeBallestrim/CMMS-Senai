@@ -562,6 +562,37 @@ async def detalhe_equipamento(request: Request, id: int | None = None):
         return RedirectResponse("/equipamentos?notice=Equipamento%20não%20encontrado.", status_code=303)
     sec = db.client.table(S).select("*").eq("id", equipment["sector_id"]).execute().data
     equipment["_sector"] = sec[0] if sec else None
+
+    prefs = _unit_preferences()
+    unit_tz = prefs.get("timezone_name", "America/Sao_Paulo")
+
+    # Histórico individual de manutenção para este equipamento
+    calls = db.client.table(C).select("*").eq("equipment_id", id).order("created_at", desc=True).execute().data or []
+    history = []
+    for c in calls:
+        wo = db.client.table(OS).select("*").eq("call_id", c["id"]).execute().data
+        order = wo[0] if wo else None
+        status_display = c["status"]
+        if order and order.get("status") == "Concluída":
+            status_display = "Concluído"
+        elif order and order.get("status"):
+            status_display = order["status"]
+        req = db.client.table(U).select("*").eq("id", c["requester_id"]).execute().data
+        requester_name = req[0]["name"] if req else "?"
+        history.append({
+            "call_id": c["id"],
+            "call_number": c.get("number", ""),
+            "description": c.get("description", "")[:80],
+            "problem_type": c.get("problem_type") or "—",
+            "status": status_display,
+            "priority": c.get("priority", "—"),
+            "created_at": local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y %H:%M") if c.get("created_at") else "?",
+            "requester": requester_name,
+            "solution": order.get("solution") if order else None,
+            "finished_at": local_datetime(order.get("finished_at"), unit_tz, "%d/%m/%Y %H:%M") if order and order.get("finished_at") else None,
+        })
+    equipment["_history"] = history
+
     return page(request, "equipamentos/detalhe.html", context={"equipment": equipment})
 
 
