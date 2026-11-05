@@ -477,20 +477,28 @@ async def criar_chamado(
     if not db.client.table(E).select("id").eq("id", equipment_id).execute().data:
         return RedirectResponse("/chamados/novo?notice=Equipamento%20não%20encontrado.", status_code=303)
     photo_name, photo_mime = await save_image(photo, "calls")
-    resp = db.client.table(C).insert({
+    dados_chamado = {
         "number": make_number("CH"),
         "equipment_id": equipment_id,
         "requester_id": user["id"],
         "description": description.strip(),
         "priority": priority,
+        "photo_name": photo_name,
+        "photo_mime": photo_mime,
+    }
+    # Campos de diagnóstico (opcionais - só envia se a coluna existir no banco)
+    dados_diagnostico = {
         "problem_type": problem_type.strip() or None,
         "problem_other": problem_other.strip() or None,
         "noise_vibration": noise_vibration == "true",
         "overheating": overheating == "true",
         "other_symptoms": other_symptoms.strip() or None,
-        "photo_name": photo_name,
-        "photo_mime": photo_mime,
-    }).execute()
+    }
+    try:
+        resp = db.client.table(C).insert({**dados_chamado, **dados_diagnostico}).execute()
+    except Exception:
+        # As colunas de diagnóstico podem não existir no schema antigo
+        resp = db.client.table(C).insert(dados_chamado).execute()
     call = resp.data[0]
     prefs = _unit_preferences()
     if prefs.get("notify_admin_new_call"):
