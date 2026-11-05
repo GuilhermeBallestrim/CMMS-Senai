@@ -2,7 +2,6 @@ import urllib.request
 import urllib.parse
 import http.cookiejar
 import re
-import json
 
 cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
@@ -35,50 +34,43 @@ def post(path, data_dict):
         return None, f"EXCECAO: {type(e).__name__}: {e}", {}
 
 print("=" * 60)
-print("TESTE 1: Login")
+print("TESTE: Login com teste@teste.com")
 print("=" * 60)
 status, body, headers = get('/login')
-print(f"GET /login: Status {status}")
 csrf_match = re.search(r'name="csrf_token"[^>]*value="([^"]*)"', body)
-print(f"CSRF token: {'ENCONTRADO' if csrf_match else 'NAO ENCONTRADO'}")
+print(f"GET /login: Status {status}, CSRF: {'OK' if csrf_match else 'FALHA'}")
 
-# Tentar login com admin@senai.com
 if csrf_match:
-    print("\nTentando login admin@senai.com...")
     status, body, headers = post('/login', {
-        'email': 'admin@senai.com',
-        'password': 'senha12345678',
+        'email': 'teste@teste.com',
+        'password': 'Teste12345678',
         'csrf_token': csrf_match.group(1),
     })
     print(f"POST /login: Status {status}")
     if status == 303:
         print(f"  SUCESSO! Redirecionou para: {headers.get('Location', 'N/A')}")
     elif status == 200:
-        print(f"  Login falhou (401 - senha incorreta)")
-        if 'invalido' in body.lower() or 'inválido' in body.lower():
-            print("  Mensagem de erro detectada no body")
+        print(f"  Login falhou (senha incorreta)")
     elif status == 500:
         print(f"  ERRO 500: {body[:500]}")
-    else:
-        print(f"  Status inesperado: {status}")
 
 print("\n" + "=" * 60)
-print("TESTE 2: GET /equipamentos")
+print("TESTE: GET /equipamentos (logado)")
 print("=" * 60)
 status, body, headers = get('/equipamentos')
 print(f"GET /equipamentos: Status {status}")
 if status == 500:
     print(f"  ERRO 500: {body[:800]}")
 elif status == 200:
-    if 'Equipamentos' in body:
-        print("  Página de equipamentos carregada")
     if 'Fresa 02' in body:
-        print("  Equipamento 'Fresa 02' encontrado no HTML")
+        print("  Equipamento 'Fresa 02' encontrado no HTML - SUCESSO!")
     if 'Nenhum equipamento' in body:
         print("  Mensagem 'Nenhum equipamento cadastrado'")
+    if 'Equipamentos' in body:
+        print("  Título 'Equipamentos' encontrado")
 
 print("\n" + "=" * 60)
-print("TESTE 3: GET /chamados/novo")
+print("TESTE: GET /chamados/novo (logado)")
 print("=" * 60)
 status, body, headers = get('/chamados/novo')
 print(f"GET /chamados/novo: Status {status}")
@@ -93,18 +85,15 @@ elif status == 200:
         print(f"  - {e[1]} (id={e[0]})")
 
 print("\n" + "=" * 60)
-print("TESTE 4: POST /chamados")
+print("TESTE: POST /chamados (logado)")
 print("=" * 60)
-# Pegar CSRF e equipamentos novamente
 status, body, headers = get('/chamados/novo')
 csrf_match = re.search(r'name="csrf_token"[^>]*value="([^"]*)"', body)
 equipamentos = re.findall(r'<option value="(\d+)">([^<]+)</option>', body)
 
 if csrf_match and equipamentos:
     equip_id = equipamentos[0][0]
-    equip_nome = equipamentos[0][1]
-    print(f"Tentando criar chamado com equipamento id={equip_id} ({equip_nome})...")
-    
+    print(f"Criando chamado com equipamento id={equip_id}...")
     status, body, headers = post('/chamados', {
         'equipment_id': equip_id,
         'description': 'Teste de chamado para verificar erro 500',
@@ -124,13 +113,11 @@ if csrf_match and equipamentos:
     else:
         print(f"  Status: {status}")
         print(f"  Body: {body[:200]}")
-elif not csrf_match:
-    print("  CSRF token nao encontrado - nao posso testar POST")
 elif not equipamentos:
-    print("  Nenhum equipamento no banco - nao posso testar POST")
+    print("  Nenhum equipamento - não consigo testar POST")
 
 print("\n" + "=" * 60)
-print("TESTE 5: GET /dashboard")
+print("TESTE: GET /dashboard (logado)")
 print("=" * 60)
 status, body, headers = get('/dashboard')
 print(f"GET /dashboard: Status {status}")

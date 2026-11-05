@@ -25,6 +25,7 @@ from backend.models import (
 )
 from backend.security import hash_password, verify_password
 from backend.services import log_audit, notify_administrators, notify_user
+from backend.storage import file_path, save_image, save_pdf
 
 ROOT_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
