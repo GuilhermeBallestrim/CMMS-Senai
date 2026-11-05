@@ -1,5 +1,54 @@
 {% extends "base.html" %}{% from "partials/icons.html" import icon as ui_icon %}{% set active_page='dashboard' %}{% block title %}Dashboard · SENAI CMMS{% endblock %}{% block breadcrumb %}Dashboard{% endblock %}
-{% block content %}<div class="page-heading"><div><div class="eyebrow">SENAI · GESTÃO DE MANUTENÇÃO</div><h1>Dashboard</h1><p>Acompanhe a operação de manutenção da sua unidade.</p></div><div class="page-heading__actions"><a class="button button--primary" href="/chamados/novo">{{ ui_icon('plus', 16) }} Novo chamado</a></div></div>
-<section class="metrics" aria-label="Indicadores principais">{% for label,value,note,icon_name,tone in [('Chamados abertos',open_count,'Aguardando atendimento','ticket','red'),('Em análise',analysis_count,'Abertos ou em triagem','clock','blue'),('Concluídos',completed_count,'Encerrados','check','green'),('Chamados registrados',total_calls,'Visíveis para seu perfil','alert','orange')] %}<article class="metric-card"><div class="metric-card__top"><span>{{ label }}</span><span class="metric-card__icon metric-card__icon--{{ tone }}">{{ ui_icon(icon_name,17) }}</span></div><strong class="metric-card__value">{{ value }}</strong><small class="metric-card__note">{{ note }}</small></article>{% endfor %}</section>
-<section class="dashboard-grid"><article class="panel panel--wide"><div class="panel__heading"><div><h2>Chamados recentes</h2><p>Últimas solicitações registradas</p></div><a class="text-link" href="/chamados">Ver todos {{ ui_icon('arrow-right',14) }}</a></div><div class="table-wrap"><table><thead><tr><th>CHAMADO</th><th>EQUIPAMENTO</th><th>PROBLEMA</th><th>PRIORIDADE</th><th>STATUS</th><th>DATA</th></tr></thead><tbody>{% for call in recent_calls %}<tr><td><a href="/chamados/detalhe?id={{ call.id }}" class="table__id">#{{ call.number }}</a></td><td>{{ call.equipment.name }}</td><td>{{ call.description|truncate(45) }}</td><td><span class="priority priority--{{ call.priority|lower }}">{{ call.priority }}</span></td><td><span class="status {{ status_class(call.status) }}">{{ call.status }}</span></td><td>{{ local_datetime(call.created_at, unit_settings.timezone_name, '%d/%m/%Y') }}</td></tr>{% else %}<tr><td colspan="6">Ainda não há chamados.</td></tr>{% endfor %}</tbody></table></div></article>
-{% if current_user.role == 'administrator' %}<article class="panel panel--side"><div class="panel__heading"><div><h2>OS em andamento</h2><p>Atendimentos ativos</p></div><a class="text-link" href="/ordens-servico">Ver todas {{ ui_icon('arrow-right',14) }}</a></div>{% for order in active_orders %}<div class="work-order"><div class="work-order__head"><a href="/ordens-servico/detalhe?id={{ order.id }}">{{ order.number }}</a><span>{{ order.status }}</span></div><strong>{{ order.call.equipment.name }}</strong><small>{{ order.responsible.name }}</small></div>{% else %}<p class="muted">Nenhuma OS em andamento.</p>{% endfor %}</article>{% endif %}</section>{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">SENAI · GESTÃO DE MANUTENÇÃO</div><h1>Dashboard</h1><p>Acompanhe a operação de manutenção da sua unidade.</p></div><div class="page-heading__actions"><a class="button button--primary" href="/chamados/novo">{{ ui_icon('plus', 16) }} Novo chamado</a></div></div>
+
+<section class="metrics" aria-label="Indicadores principais">
+{% for label,value,note,icon_name,tone in [('Chamados abertos',open_count,'Aguardando atendimento','ticket','red'),('Em análise',analysis_count,'Abertos ou em triagem','clock','blue'),('Concluídos',completed_count,'Encerrados','check','green'),('Chamados registrados',total_calls,'Visíveis para seu perfil','alert','orange')] %}
+<article class="metric-card"><div class="metric-card__top"><span>{{ label }}</span><span class="metric-card__icon metric-card__icon--{{ tone }}">{{ ui_icon(icon_name,17) }}</span></div><strong class="metric-card__value">{{ value }}</strong><small class="metric-card__note">{{ note }}</small></article>
+{% endfor %}
+</section>
+
+<section class="dashboard-grid">
+<article class="panel panel--wide">
+<div class="panel__heading"><div><h2>Chamados abertos por equipamento</h2><p>Solicitações pendentes de atendimento</p></div><a class="text-link" href="/chamados">Ver todos {{ ui_icon('arrow-right',14) }}</a></div>
+<div class="table-wrap"><table><thead><tr><th>EQUIPAMENTO</th><th>SETOR</th><th>TRABALHO</th><th>TIPO</th><th>PRIORIDADE</th><th>STATUS</th><th>SOLICITADO EM</th><th>RESPONSÁVEL</th></tr></thead>
+<tbody>
+{% if open_calls_detail %}
+{% for oc in open_calls_detail %}
+<tr>
+<td><a href="/chamados/detalhe?id={{ oc._call_id }}" class="table__id">{{ oc.equipment }}</a></td>
+<td>{{ oc.sector }}</td>
+<td>{{ oc.trabalho }}</td>
+<td><span class="badge badge--{{ oc.tipo|lower }}">{{ oc.tipo }}</span></td>
+<td><span class="priority priority--{{ oc.prioridade|lower }}">{{ oc.prioridade }}</span></td>
+<td><span class="status {{ status_class(oc.status) }}">{{ oc.status }}</span></td>
+<td>{{ oc.solicitado_em }}</td>
+<td>{{ oc.responsavel }}</td>
+</tr>
+{% endfor %}
+{% else %}
+<tr><td colspan="8">Nenhum chamado aberto no momento.</td></tr>
+{% endif %}
+</tbody></table></div></article>
+
+{% if equipment_metrics %}
+<article class="panel panel--wide">
+<div class="panel__heading"><div><h2>MTTR e MTBF por equipamento</h2><p>Tempo médio de reparo e entre falhas (ordens concluídas)</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>EQUIPAMENTO</th><th>MTTR (horas)</th><th>MTBF (horas)</th><th>ÚLTIMA CONCLUSÃO</th></tr></thead>
+<tbody>
+{% for eq_id, m in equipment_metrics.items() %}
+<tr>
+<td>{{ m.equipment_name }}</td>
+<td>{{ m.mttr_avg }}</td>
+<td>{{ m.mtbf_hours }}</td>
+<td>{{ m.last_finished.strftime('%d/%m/%Y %H:%M') if m.last_finished else '—' }}</td>
+</tr>
+{% endfor %}
+</tbody></table></div></article>
+{% endif %}
+
+{% if current_user.role == 'administrator' %}
+<article class="panel panel--side"><div class="panel__heading"><div><h2>OS em andamento</h2><p>Atendimentos ativos</p></div><a class="text-link" href="/ordens-servico">Ver todas {{ ui_icon('arrow-right',14) }}</a></div>{% for order in active_orders %}<div class="work-order"><div class="work-order__head"><a href="/ordens-servico/detalhe?id={{ order.id }}">{{ order.number }}</a><span>{{ order.status }}</span></div><strong>{{ order._equipment_name }}</strong><small>{{ order.responsible.name }}</small></div>{% else %}<p class="muted">Nenhuma OS em andamento.</p>{% endfor %}</article>
+{% endif %}
+</section>
+{% endblock %}

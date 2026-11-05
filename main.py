@@ -234,15 +234,103 @@ async def dashboard(request: Request):
     def _call_snippet(c):
         equip = db.client.table(E).select("*").eq("id", c["equipment_id"]).execute().data
         requester = db.client.table(U).select("*").eq("id", c["requester_id"]).execute().data
-        return {**c, "_equipment_name": equip[0]["name"] if equip else "?",
+        sector = None
+        if equip and equip[0].get("sector_id"):
+            sec = db.client.table(S).select("*").eq("id", equip[0]["sector_id"]).execute().data
+            sector = sec[0]["name"] if sec else "?"
+        return {**c,
+                "_equipment_name": equip[0]["name"] if equip else "?",
+                "_equipment_id": equip[0]["id"] if equip else None,
+                "_sector_name": sector,
                 "_requester_name": requester[0]["name"] if requester else "?"}
     calls_snippet = [_call_snippet(c) for c in calls]
     active_orders = orders[:4]
+
+    # Chamados abertos detalhados para a página inicial
+    prefs = _unit_preferences()
+    unit_tz = prefs.get("timezone_name", "America/Sao_Paulo")
+
+    open_calls_detail = []
+    for c in calls:
+        if c["status"] in ("Concluído", "Cancelado"):
+            continue
+        equip = db.client.table(E).select("*").eq("id", c["equipment_id"]).execute().data
+        if not equip:
+            continue
+        e = equip[0]
+        sec = None
+        if e.get("sector_id"):
+            s = db.client.table(S).select("*").eq("id", e["sector_id"]).execute().data
+            sec = s[0]["name"] if s else "?"
+        # Tipo de trabalho: usa problem_type ou description
+        trabalho = c.get("problem_type") or c.get("description", "")[:60]
+        tipo = "Preventiva" if c.get("problem_type") else "Corretiva"
+        prioridade = c.get("priority", "Média")
+        status = c.get("status", "Aberto")
+        # Responsável pela manutenção: do work_order se houver, senão do equipamento
+        resp_name = "Não definido"
+        wo = db.client.table(OS).select("*").eq("call_id", c["id"]).execute().data
+        if wo and wo[0].get("responsible_id"):
+            r = db.client.table(U).select("*").eq("id", wo[0]["responsible_id"]).execute().data
+            if r:
+                resp_name = r[0]["name"]
+        elif e.get("responsible_id"):
+            r = db.client.table(U).select("*").eq("id", e["responsible_id"]).execute().data
+            if r:
+                resp_name = r[0]["name"]
+        open_calls_detail.append({
+            "equipment": e["name"],
+            "sector": sec or "?",
+            "trabalho": trabalho,
+            "tipo": tipo,
+            "prioridade": prioridade,
+            "status": status,
+            "solicitado_em": local_datetime(c.get("created_at"), unit_tz, "%d/%m/%Y") if c.get("created_at") else "?",
+            "responsavel": resp_name,
+            "_call_id": c["id"],
+            "_call_number": c.get("number", ""),
+        })
+
+    # Calcular MTTR e MTBF por equipamento (apenas ordens concluídas)
+    equipment_metrics = {}
+    all_orders = db.client.table(OS).select("*").execute().data
+    for o in all_orders:
+        if o.get("status") != "Concluída" or not o.get("call_id"):
+            continue
+        call = db.client.table(C).select("*").eq("id", o["call_id"]).execute().data
+        if not call:
+            continue
+        eq_id = call[0].get("equipment_id")
+        if not eq_id:
+            continue
+        started = o.get("started_at")
+        finished = o.get("finished_at")
+        if not started or not finished:
+            continue
+        try:
+            started_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            finished_dt = datetime.fromisoformat(str(finished).replace("Z", "+00:00"))
+            mttr_hours = (finished_dt - started_dt).total_seconds() / 3600
+        except Exception:
+            continue
+        if eq_id not in equipment_metrics:
+            equipment_metrics[eq_id] = {"mttr": [], "mtbf": [], "last_finished": None}
+        equipment_metrics[eq_id]["mttr"].append(mttr_hours)
+        equipment_metrics[eq_id]["last_finished"] = finished_dt
+
+    # MTBF: tempo entre conclusões consecutivas
+    for eq_id, m in equipment_metrics.items():
+        m["mttr_avg"] = round(sum(m["mttr"]) / len(m["mttr"]), 1) if m["mttr"] else 0
+        m["mtbf_hours"] = 0
+        m["equipment_name"] = db.client.table(E).select("name").eq("id", eq_id).execute().data[0]["name"]
+
     return page(request, "dashboard.html", context={
         "recent_calls": calls_snippet[:5], "open_count": open_count, "analysis_count": analysis_count,
         "completed_count": completed_count, "total_calls": len(calls), "active_orders": active_orders,
         "priority_counts": {p: sum(1 for c in calls if c["priority"] == p and c["status"] not in ("Concluído", "Cancelado")) for p in ("Crítica", "Alta", "Média", "Baixa")},
         "status_class": status_class,
+        "open_calls_detail": open_calls_detail,
+        "equipment_metrics": equipment_metrics,
     })
 
 
@@ -292,6 +380,11 @@ async def criar_chamado(
     equipment_id: int = Form(...),
     description: str = Form(...),
     priority: str = Form(...),
+    problem_type: str = Form(""),
+    problem_other: str = Form(""),
+    noise_vibration: str = Form("false"),
+    overheating: str = Form("false"),
+    other_symptoms: str = Form(""),
     csrf_token: str = Form(...),
     photo: UploadFile | None = File(None),
 ):
@@ -310,6 +403,11 @@ async def criar_chamado(
         "requester_id": user["id"],
         "description": description.strip(),
         "priority": priority,
+        "problem_type": problem_type.strip() or None,
+        "problem_other": problem_other.strip() or None,
+        "noise_vibration": noise_vibration == "true",
+        "overheating": overheating == "true",
+        "other_symptoms": other_symptoms.strip() or None,
         "photo_name": photo_name,
         "photo_mime": photo_mime,
     }).execute()

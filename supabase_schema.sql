@@ -200,5 +200,32 @@ insert into unit_settings (id, unit_name, timezone_name, notify_admin_new_call)
 values (1, 'SENAI — São Paulo', 'America/Sao_Paulo', true)
 on conflict (id) do nothing;
 
-insert into sectors (name) values ('Usinagem'), ('Plástico'), ('Utilidades'), ('Marcenaria')
+insert into sectors (name) values ('Usinagem'), ('Plástico')
 on conflict (name) do nothing;
+
+-- Equipamentos iniciais — Setor Usinagem
+insert into equipment (name, sector_id, asset_tag, state)
+values
+  ('Fresa 02', (select id from sectors where name = 'Usinagem'), 'FR-02', 'Disponível'),
+  ('Torno 01', (select id from sectors where name = 'Usinagem'), 'TO-01', 'Disponível'),
+  ('Torno 02', (select id from sectors where name = 'Usinagem'), 'TO-02', 'Disponível'),
+  ('Furadeira 01', (select id from sectors where name = 'Usinagem'), 'FU-01', 'Disponível'),
+  ('Furadeira 02', (select id from sectors where name = 'Usinagem'), 'FU-02', 'Disponível')
+on conflict (asset_tag) do nothing;
+
+-- Equipamentos iniciais — Setor Plástico
+insert into equipment (name, sector_id, asset_tag, state)
+values
+  ('Injetora 01', (select id from sectors where name = 'Plástico'), 'INJ-01', 'Disponível'),
+  ('Injetora 02', (select id from sectors where name = 'Plástico'), 'INJ-02', 'Disponível'),
+  ('Sopradora 01', (select id from sectors where name = 'Plástico'), 'SOP-01', 'Disponível'),
+  ('Termoformadora SUPRAVAC-2', (select id from sectors where name = 'Plástico'), 'TER-01', 'Disponível'),
+  ('Extrusora de Filme 01', (select id from sectors where name = 'Plástico'), 'EXT-01', 'Disponível')
+on conflict (asset_tag) do nothing;
+
+-- Novos campos na tabela maintenance_calls para diagnóstico detalhado
+alter table maintenance_calls add column if not exists problem_type varchar(40);
+alter table maintenance_calls add column if not exists problem_other text;
+alter table maintenance_calls add column if not exists noise_vibration boolean default false;
+alter table maintenance_calls add column if not exists overheating boolean default false;
+alter table maintenance_calls add column if not exists other_symptoms text;
