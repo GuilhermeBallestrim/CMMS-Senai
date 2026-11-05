@@ -48,6 +48,23 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
 
+
+def _fmt_date(value, fmt="%d/%m/%Y"):
+    if not value:
+        return "—"
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    try:
+        return value.strftime(fmt)
+    except Exception:
+        return str(value)
+
+
+templates.env.filters["fmt"] = _fmt_date
+
 C = TABLE_MAINTENANCE_CALLS
 E = TABLE_EQUIPMENT
 OS = TABLE_WORK_ORDERS
@@ -422,8 +439,9 @@ async def chamados(request: Request, page_num: int = 1):
     def _call_snippet(c):
         equip = db.client.table(E).select("*").eq("id", c["equipment_id"]).execute().data
         requester = db.client.table(U).select("*").eq("id", c["requester_id"]).execute().data
+        requester_obj = requester[0] if requester else None
         return {**c, "_equipment_name": equip[0]["name"] if equip else "?",
-                "_requester_name": requester[0]["name"] if requester else "?"}
+                "_requester": requester_obj, "requester": requester_obj or {}}
     items = [_call_snippet(c) for c in items]
     counts = {s: 0 for s in ("Aberto", "Em análise", "Em manutenção", "Aguardando peça", "Concluído")}
     for call in items:
@@ -529,6 +547,7 @@ async def detalhe_chamado(request: Request, id: int | None = None):
     call["_equipment"] = equipment
     call["_sector"] = sector
     call["_requester"] = requester
+    call["requester"] = requester or {}
     call["_work_order"] = work_order
     return page(request, "chamados/detalhe.html", context={"call": call, "status_class": status_class(call["status"])})
 
@@ -808,7 +827,13 @@ def view_equipment_file(equipment_id: int, kind: str, _user: dict = Depends(get_
 
 def _order_snippet(o):
     call, eq = _order_call_equipment(o)
-    return {**o, "_equipment_name": eq["name"] if eq else "?", "_equipment_id": eq["id"] if eq else None,
+    resp = db.client.table(U).select("*").eq("id", o.get("responsible_id")).execute().data if o.get("responsible_id") else []
+    responsible = resp[0] if resp else None
+    # attach nested objects expected by templates
+    if call is not None:
+        call = {**call, "equipment": eq, "_equipment": eq}
+    return {**o, "call": call, "equipment": eq, "responsible": responsible,
+            "_equipment_name": eq["name"] if eq else "?", "_equipment_id": eq["id"] if eq else None,
             "_call_number": call["number"] if call else "?", "_call_id": call["id"] if call else None,
             "_call_description": call["description"] if call else "",
             "_call_priority": call["priority"] if call else "",
@@ -920,7 +945,8 @@ async def historico(request: Request):
 
 def _sc_snippet(r):
     requester = db.client.table(U).select("*").eq("id", r["requester_id"]).execute().data
-    return {**r, "_requester_name": requester[0]["name"] if requester else "?"}
+    requester_obj = requester[0] if requester else None
+    return {**r, "_requester": requester_obj, "requester": requester_obj or {}}
 
 
 @app.get("/solicitacoes")
