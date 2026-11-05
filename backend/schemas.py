@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-Role = Literal["professor", "administrator"]
+Role = Literal["professor", "tecnico", "administrator"]
 Priority = Literal["Baixa", "Média", "Alta", "Crítica"]
 CallStatus = Literal["Aberto", "Em análise", "Em manutenção", "Aguardando peça", "Concluído", "Cancelado"]
 
@@ -43,6 +43,7 @@ class EquipmentCreate(BaseModel):
     model: str | None = Field(default=None, max_length=120)
     asset_tag: str = Field(min_length=1, max_length=80)
     serial_number: str | None = Field(default=None, max_length=100)
+    acquired_at: str | None = None
     state: Literal["Disponível", "Em manutenção", "Indisponível"] = "Disponível"
     responsible_id: int | None = None
 
@@ -54,8 +55,11 @@ class EquipmentRead(ORMModel):
     model: str | None
     asset_tag: str
     serial_number: str | None
+    acquired_at: str | None = None
     state: str
     responsible_id: int | None
+    photo_name: str | None = None
+    manual_name: str | None = None
     created_at: datetime
 
 
@@ -87,6 +91,7 @@ class CallRead(ORMModel):
     description: str
     priority: Priority
     status: CallStatus
+    photo_name: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -116,8 +121,13 @@ class PurchaseDecision(BaseModel):
 
 
 class WorkOrderUpdate(BaseModel):
-    status: Literal["Em execução", "Aguardando peça", "Concluída"]
+    status: Literal["Em execução", "Aguardando peça", "Concluída"] | None = None
     started_at: datetime | None = None
+    responsible_id: int | None = None
+
+
+class WorkOrderAssignment(BaseModel):
+    responsible_id: int
     defect: str | None = Field(default=None, max_length=5000)
     cause: str | None = Field(default=None, max_length=5000)
     solution: str | None = Field(default=None, max_length=5000)

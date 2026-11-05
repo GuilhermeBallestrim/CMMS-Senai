@@ -6,10 +6,6 @@ __pycache__/
 .env
 cmms.db
 uploads/
-<<<<<<< HEAD
-uvicorn.log
-uvicorn-error.log
-=======
 
 # O Firebase saiu do projeto. O arquivo segue ignorado por precaução, caso
 # sobre no disco de alguém que venha do histórico do git.
@@ -19,4 +15,3 @@ config/firebase-key.json
 
 *.log
 *.zip
->>>>>>> 763faa02520857295d80a222e5a2a365debda955

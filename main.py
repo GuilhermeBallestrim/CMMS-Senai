@@ -24,8 +24,7 @@ from backend.models import (
     TABLE_USERS, TABLE_WORK_ORDERS,
 )
 from backend.security import hash_password, verify_password
-from backend.services import notify_administrators, notify_user
-from backend.storage import file_path, save_image, save_pdf
+from backend.services import log_audit, notify_administrators, notify_user
 
 ROOT_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
@@ -111,7 +110,7 @@ def render(request: Request, template: str, *, notice: str | None = None, status
     )
 
 
-def page(request: Request, template: str, *, role: str | None = None, context: dict | None = None):
+def page(request: Request, template: str, *, role: str | None = None, roles: list | None = None, context: dict | None = None):
     user_id = request.session.get("user_id")
     if not user_id:
         return RedirectResponse("/login", status_code=303)
@@ -121,8 +120,9 @@ def page(request: Request, template: str, *, role: str | None = None, context: d
         return RedirectResponse("/login", status_code=303)
     user = {"id": resp.data[0]["id"], "name": resp.data[0]["name"], "email": resp.data[0]["email"], "role": resp.data[0]["role"]}
     request.session["user"] = user
-    if role == "administrator" and user["role"] != "administrator":
-        return RedirectResponse("/dashboard?notice=Acesso%20restrito%20ao%20administrador.", status_code=303)
+    allowed = roles if roles is not None else ([role] if role else None)
+    if allowed and user["role"] not in allowed:
+        return RedirectResponse("/dashboard?notice=Acesso%20restrito.", status_code=303)
     return render(request, template, context=context)
 
 
@@ -251,7 +251,9 @@ async def dashboard(request: Request):
 # --------------------------------------------------
 
 @app.get("/chamados")
-async def chamados(request: Request):
+async def chamados(request: Request, page: int = 1):
+    PAGE_SIZE = 20
+    page = max(page, 1)
     items = db.client.table(C).select("*").order("created_at", desc=True).execute().data
     user = request.session.get("user")
     if user and user["role"] == "professor":
@@ -266,7 +268,16 @@ async def chamados(request: Request):
     for call in items:
         if call["status"] in counts:
             counts[call["status"]] += 1
-    return page(request, "chamados/lista.html", context={"calls": items, "call_counts": counts, "status_class": status_class})
+    total = len(items)
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page = min(page, total_pages)
+    start = (page - 1) * PAGE_SIZE
+    page_items = items[start:start + PAGE_SIZE]
+    return page(request, "chamados/lista.html", context={
+        "calls": page_items, "call_counts": counts, "status_class": status_class,
+        "page": page, "total_pages": total_pages, "total": total,
+        "has_prev": page > 1, "has_next": page < total_pages,
+    })
 
 
 @app.get("/chamados/novo")
@@ -307,6 +318,7 @@ async def criar_chamado(
     if prefs.get("notify_admin_new_call"):
         kind = "warning" if priority in {"Alta", "Crítica"} else "info"
         notify_administrators("Novo chamado", f"{call['number']}: prioridade {priority}.", f"/chamados/detalhe?id={call['id']}", kind)
+    log_audit(user["id"], "created", "maintenance_call", call["id"], f"Abriu o chamado {call['number']} pela web.")
     return RedirectResponse("/chamados?notice=Chamado%20registrado%20com%20sucesso.", status_code=303)
 
 
@@ -353,8 +365,9 @@ async def aprovar_chamado(request: Request, call_id: int, csrf_token: str = Form
             "status": "Aguardando início",
         }).execute()
         order = resp.data[0]
-        db.client.table(C).update({"status": "Em análise"}).eq("id", call_id).execute()
+        db.client.table(C).update({"status": "Em análise", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call_id).execute()
         notify_user(call["requester_id"], "Chamado aprovado", f"{call['number']} gerou a ordem {order['number']}.", f"/chamados/detalhe?id={call_id}")
+        log_audit(user["id"], "approved", "maintenance_call", call_id, f"Aprovou {call['number']} e gerou {order['number']}.")
     return RedirectResponse(f"/chamados/detalhe?id={call_id}&notice=Ordem%20de%20serviço%20gerada.", status_code=303)
 
 
@@ -370,11 +383,12 @@ async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = For
         raise HTTPException(404, "Chamado não encontrado.")
     if call["status"] != "Aberto":
         raise HTTPException(409, "Só é possível cancelar um chamado aberto.")
-    db.client.table(C).update({"status": "Cancelado"}).eq("id", call_id).execute()
+    db.client.table(C).update({"status": "Cancelado", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call_id).execute()
     if user["role"] == "administrator":
         notify_user(call["requester_id"], "Chamado cancelado", f"{call['number']} foi cancelado pelo administrador.", f"/chamados/detalhe?id={call_id}", "warning")
     else:
         notify_administrators("Chamado cancelado", f"{call['number']} foi cancelado pelo solicitante.", f"/chamados/detalhe?id={call_id}", "warning")
+    log_audit(user["id"], "cancelled", "maintenance_call", call_id, f"Cancelou o chamado {call['number']}.")
     return RedirectResponse("/chamados?notice=Chamado%20cancelado.", status_code=303)
 
 
@@ -383,14 +397,25 @@ async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = For
 # --------------------------------------------------
 
 @app.get("/equipamentos")
-async def equipamentos(request: Request):
+async def equipamentos(request: Request, page: int = 1):
+    PAGE_SIZE = 20
+    page = max(page, 1)
     items = db.client.table(E).select("*").order("name").execute().data
     for e in items:
         sec = db.client.table(S).select("*").eq("id", e["sector_id"]).execute().data
         e["_sector"] = sec[0] if sec else None
         resp_user = db.client.table(U).select("*").eq("id", e.get("responsible_id")).execute().data if e.get("responsible_id") else []
         e["_responsible"] = resp_user[0] if resp_user else None
-    return page(request, "equipamentos/lista.html", context={"equipment_items": items})
+    total = len(items)
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page = min(page, total_pages)
+    start = (page - 1) * PAGE_SIZE
+    page_items = items[start:start + PAGE_SIZE]
+    return page(request, "equipamentos/lista.html", context={
+        "equipment_items": page_items,
+        "page": page, "total_pages": total_pages, "total": total,
+        "has_prev": page > 1, "has_next": page < total_pages,
+    })
 
 
 @app.get("/equipamentos/novo")
@@ -426,6 +451,8 @@ async def criar_equipamento(
         "asset_tag": asset_tag.strip(), "state": state, "photo_name": photo_name,
         "photo_mime": photo_mime, "manual_name": manual_name, "manual_mime": manual_mime,
     }).execute()
+    if resp.data:
+        log_audit(user["id"], "created", "equipment", resp.data[0]["id"], f"Cadastrou o equipamento {asset_tag.strip()} pela web.")
     return RedirectResponse("/equipamentos?notice=Equipamento%20cadastrado.", status_code=303)
 
 
@@ -463,31 +490,36 @@ async def editar_equipamento(
     if state not in {"Disponível", "Em manutenção", "Indisponível"} or not 2 <= len(name.strip()) <= 120 or not 1 <= len(asset_tag.strip()) <= 80:
         raise HTTPException(422, "Dados do equipamento inválidos.")
     try:
-        acquired_date = date.fromisoformat(acquired_at) if acquired_at else None
+        acquired_date = date.fromisoformat(acquired_at).isoformat() if acquired_at else None
     except ValueError:
         raise HTTPException(422, "Data de aquisição inválida.") from None
     resp = db.client.table(E).select("*").eq("id", equipment_id).execute()
     equipment = resp.data[0] if resp.data else None
-    if not equipment:
-        raise HTTPException(404, "Equipamento não encontrado.")
-    sector_resp = db.client.table(S).select("id").eq("id", sector_id).execute()
-    if not sector_resp.data:
+    if not equipment or not db.client.table(S).select("id").eq("id", sector_id).execute().data:
         raise HTTPException(404, "Equipamento ou setor não encontrado.")
-    if state != equipment["state"]:
+    # Guarda: não alterar estado enquanto houver OS ativa para o equipamento.
+    if state != equipment.get("state"):
         calls = db.client.table(C).select("id").eq("equipment_id", equipment_id).execute().data
-        for call in calls:
-            wo = db.client.table(OS).select("id").eq("call_id", call["id"]).neq("status", "Concluída").execute().data
-            if wo:
-                return RedirectResponse(
-                    f"/equipamentos/{equipment_id}/editar?notice=O%20estado%20é%20controlado%20pela%20ordem%20de%20serviço%20ativa.",
-                    status_code=303,
-                )
+        call_ids = [c["id"] for c in calls]
+        active_order = False
+        if call_ids:
+            orders = db.client.table(OS).select("id,status").in_("call_id", call_ids).execute().data
+            active_order = any(o.get("status") != "Concluída" for o in orders)
+        if active_order:
+            return RedirectResponse(
+                f"/equipamentos/{equipment_id}/editar?notice=O%20estado%20é%20controlado%20pela%20ordem%20de%20serviço%20ativa.",
+                status_code=303,
+            )
     update = {
         "name": name.strip(), "sector_id": sector_id, "model": model_name.strip() or None,
         "serial_number": serial_number.strip() or None, "acquired_at": acquired_date,
         "asset_tag": asset_tag.strip(), "state": state,
     }
-    db.client.table(E).update(update).eq("id", equipment_id).execute()
+    try:
+        db.client.table(E).update(update).eq("id", equipment_id).execute()
+    except Exception:
+        return RedirectResponse(f"/equipamentos/{equipment_id}/editar?notice=Patrimônio%20já%20cadastrado.", status_code=303)
+    log_audit(user["id"], "updated", "equipment", equipment_id, f"Atualizou o equipamento {asset_tag.strip()}.")
     return RedirectResponse(f"/equipamentos/detalhe?id={equipment_id}&notice=Equipamento%20atualizado.", status_code=303)
 
 
@@ -527,11 +559,22 @@ def _order_snippet(o):
 
 
 @app.get("/ordens-servico")
-async def ordens_servico(request: Request):
+async def ordens_servico(request: Request, page: int = 1):
+    PAGE_SIZE = 20
+    page = max(page, 1)
     items = db.client.table(OS).select("*").order("id", desc=True).execute().data
     items = [_order_snippet(o) for o in items]
     counts = {s: sum(1 for i in items if i["status"] == s) for s in ("Aguardando início", "Em execução", "Concluída")}
-    return page(request, "ordens_servico/lista.html", role="administrator", context={"work_orders": items, "order_counts": counts})
+    total = len(items)
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page = min(page, total_pages)
+    start = (page - 1) * PAGE_SIZE
+    page_items = items[start:start + PAGE_SIZE]
+    return page(request, "ordens_servico/lista.html", roles=["administrator", "tecnico"], context={
+        "work_orders": page_items, "order_counts": counts,
+        "page": page, "total_pages": total_pages, "total": total,
+        "has_prev": page > 1, "has_next": page < total_pages,
+    })
 
 
 @app.get("/ordens-servico/detalhe")
@@ -541,7 +584,7 @@ async def detalhe_ordem_servico(request: Request, id: int | None = None):
     if not order:
         return RedirectResponse("/ordens-servico?notice=Ordem%20de%20serviço%20não%20encontrada.", status_code=303)
     order = _order_snippet(order)
-    return page(request, "ordens_servico/detalhe.html", role="administrator", context={"order": order})
+    return page(request, "ordens_servico/detalhe.html", roles=["administrator", "tecnico"], context={"order": order})
 
 
 @app.post("/ordens-servico/{order_id}")
@@ -551,25 +594,40 @@ async def salvar_ordem_servico(
 ):
     validate_csrf(request, csrf_token)
     user = request.session.get("user")
-    if not user or user["role"] != "administrator":
-        raise HTTPException(403, "Apenas administradores podem atualizar ordens de serviço.")
+    if not user or user["role"] not in ("administrator", "tecnico"):
+        raise HTTPException(403, "Apenas administradores e técnicos podem atualizar ordens de serviço.")
     if status not in {"Em execução", "Aguardando peça", "Concluída"}:
         raise HTTPException(422, "Status inválido.")
     resp = db.client.table(OS).select("*").eq("id", order_id).execute()
     order = resp.data[0] if resp.data else None
     if not order:
         raise HTTPException(404, "Ordem de serviço não encontrada.")
+    if user["role"] == "tecnico" and order.get("responsible_id") != user["id"]:
+        raise HTTPException(403, "Você não é o responsável por esta ordem de serviço.")
     call, equip = _order_call_equipment(order)
     update = {"status": status, "solution": solution.strip() or None, "notes": notes.strip() or None,
               "defect": defect.strip() or None, "cause": cause.strip() or None, "parts": parts.strip() or None}
     if status == "Em execução" and not order.get("started_at"):
         update["started_at"] = datetime.now(timezone.utc).isoformat()
     if status == "Concluída":
-        update["finished_at"] = datetime.now(timezone.utc).isoformat()
-        if call:
-            db.client.table(C).update({"status": "Concluído"}).eq("id", call["id"]).execute()
-            if equip:
-                db.client.table(E).update({"state": "Disponível"}).eq("id", equip["id"]).execute()
+        solution = (solution or "").strip() or (order.get("solution") or "").strip()
+        rpc_ok = False
+        try:
+            db.client.rpc("conclude_order_atomic", {"p_order_id": order_id, "p_solution": solution}).execute()
+            rpc_ok = True
+        except Exception:
+            rpc_ok = False
+        if rpc_ok:
+            update.pop("status", None)
+            update.pop("solution", None)
+            update.pop("finished_at", None)
+            update.setdefault("status", "Concluída")
+        else:
+            update["finished_at"] = datetime.now(timezone.utc).isoformat()
+            if call:
+                db.client.table(C).update({"status": "Concluído"}).eq("id", call["id"]).execute()
+                if equip:
+                    db.client.table(E).update({"state": "Disponível"}).eq("id", equip["id"]).execute()
     elif status == "Aguardando peça":
         if call:
             db.client.table(C).update({"status": "Aguardando peça"}).eq("id", call["id"]).execute()
@@ -583,6 +641,8 @@ async def salvar_ordem_servico(
     db.client.table(OS).update(update).eq("id", order_id).execute()
     if call:
         notify_user(call["requester_id"], "Ordem de serviço atualizada", f"{order['number']}: {status}.", f"/chamados/detalhe?id={call['id']}")
+    user = request.session.get("user")
+    log_audit(user["id"] if user else None, "updated", "work_order", order_id, f"Atualizou {order['number']} para {status} pela web.")
     return RedirectResponse(f"/ordens-servico/detalhe?id={order_id}&notice=Ordem%20atualizada.", status_code=303)
 
 
@@ -594,7 +654,7 @@ async def salvar_ordem_servico(
 async def historico(request: Request):
     items = db.client.table(OS).select("*").eq("status", "Concluída").order("finished_at", desc=True).execute().data
     items = [_order_snippet(o) for o in items]
-    return page(request, "historico/lista.html", role="administrator", context={"completed_orders": items})
+    return page(request, "historico/lista.html", roles=["administrator", "tecnico"], context={"completed_orders": items})
 
 
 # --------------------------------------------------
@@ -607,13 +667,24 @@ def _sc_snippet(r):
 
 
 @app.get("/solicitacoes")
-async def solicitacoes(request: Request):
+async def solicitacoes(request: Request, page: int = 1):
+    PAGE_SIZE = 20
+    page = max(page, 1)
     items = db.client.table(SC).select("*").order("created_at", desc=True).execute().data
     user = request.session.get("user")
     if user and user["role"] == "professor":
         items = [r for r in items if r["requester_id"] == user["id"]]
     items = [_sc_snippet(r) for r in items]
-    return page(request, "solicitacoes/lista.html", context={"purchase_requests": items, "status_class": status_class})
+    total = len(items)
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page = min(page, total_pages)
+    start = (page - 1) * PAGE_SIZE
+    page_items = items[start:start + PAGE_SIZE]
+    return page(request, "solicitacoes/lista.html", context={
+        "purchase_requests": page_items, "status_class": status_class,
+        "page": page, "total_pages": total_pages, "total": total,
+        "has_prev": page > 1, "has_next": page < total_pages,
+    })
 
 
 @app.get("/solicitacoes/nova")
@@ -638,6 +709,7 @@ async def criar_solicitacao(
         "justification": justification.strip(), "requester_id": user["id"],
     }).execute()
     notify_administrators("Nova solicitação de compra", f"{item.strip()} ({quantity}).", "/solicitacoes", "info")
+    log_audit(user["id"], "created", "purchase_request", None, f"Criou solicitação de compra: {item.strip()}.")
     return RedirectResponse("/solicitacoes?notice=Solicitação%20registrada.", status_code=303)
 
 
@@ -661,8 +733,22 @@ async def decidir_solicitacao(request: Request, request_id: int, decision: str =
 
 
 @app.get("/solicitacoes/detalhe")
-async def detalhe_solicitacao(request: Request):
-    return page(request, "solicitacoes/detalhe.html")
+async def detalhe_solicitacao(request: Request, id: int | None = None):
+    resp = db.client.table(SC).select("*").eq("id", id).execute() if id else None
+    purchase = resp.data[0] if resp and resp.data else None
+    user = request.session.get("user")
+    if not purchase or (user and user["role"] == "professor" and purchase["requester_id"] != user["id"]):
+        return RedirectResponse("/solicitacoes?notice=Solicitação%20não%20encontrada.", status_code=303)
+    requester = db.client.table(U).select("*").eq("id", purchase["requester_id"]).execute().data
+    purchase["_requester"] = requester[0] if requester else None
+    # attach requester as .requester for template compatibility
+    purchase["requester"] = purchase["_requester"] or {}
+    if purchase.get("reviewed_by_id"):
+        rb = db.client.table(U).select("*").eq("id", purchase["reviewed_by_id"]).execute().data
+        purchase["reviewed_by"] = rb[0] if rb else None
+    else:
+        purchase["reviewed_by"] = None
+    return page(request, "solicitacoes/detalhe.html", context={"purchase": purchase, "status_class": status_class})
 
 
 # --------------------------------------------------
@@ -674,23 +760,102 @@ async def indicadores(request: Request):
     calls = db.client.table(C).select("*").execute().data
     orders = db.client.table(OS).select("*").execute().data
     equipment = db.client.table(E).select("*").execute().data
-    durations = []
+    equipment_map = {e["id"]: e for e in equipment}
+
+    # MTTR
+    repair_durations = []
     for o in orders:
         s, e = o.get("started_at"), o.get("finished_at")
         if s and e:
             try:
-                durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
+                repair_durations.append((datetime.fromisoformat(str(e).replace("Z", "+00:00")) - datetime.fromisoformat(str(s).replace("Z", "+00:00"))).total_seconds() / 3600)
             except Exception:
                 pass
+    mttr = round(sum(repair_durations) / len(repair_durations), 1) if repair_durations else None
+
+    # MTBF (média dos intervalos entre chamados por equipamento)
+    calls_by_equip = {}
+    for c in calls:
+        calls_by_equip.setdefault(c["equipment_id"], []).append(c)
+    mtbf_per_equip = []
+    for eq_calls in calls_by_equip.values():
+        if len(eq_calls) < 2:
+            continue
+        eq_calls.sort(key=lambda x: x.get("created_at") or "")
+        intervals = []
+        for i in range(1, len(eq_calls)):
+            try:
+                a = datetime.fromisoformat(str(eq_calls[i - 1].get("created_at")).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(eq_calls[i].get("created_at")).replace("Z", "+00:00"))
+                intervals.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+        if intervals:
+            mtbf_per_equip.append(sum(intervals) / len(intervals))
+    mtbf = round(sum(mtbf_per_equip) / len(mtbf_per_equip), 1) if mtbf_per_equip else None
+
+    # Disponibilidade aproximada: MTBF / (MTBF + MTTR) * 100
+    availability = None
+    if mtbf is not None and mttr is not None and (mtbf + mttr) > 0:
+        availability = round(mtbf / (mtbf + mttr) * 100, 1)
+
+    # Tempo médio de atendimento (lead time): abertura -> conclusão da OS
+    order_by_call = {o.get("call_id"): o for o in orders}
+    lead_times = []
+    for c in calls:
+        o = order_by_call.get(c["id"])
+        if o and o.get("finished_at") and c.get("created_at"):
+            try:
+                a = datetime.fromisoformat(str(c["created_at"]).replace("Z", "+00:00"))
+                b = datetime.fromisoformat(str(o["finished_at"]).replace("Z", "+00:00"))
+                lead_times.append((b - a).total_seconds() / 3600)
+            except Exception:
+                pass
+    avg_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else None
+
+    completed = [o for o in orders if o["status"] == "Concluída"]
+    completion_rate = round(len(completed) / len(orders) * 100, 1) if orders else None
+
+    # Chamados por equipamento + ranking de falhas
+    calls_per_equip = []
+    for eq_id, eq_calls in calls_by_equip.items():
+        eq = equipment_map.get(eq_id, {})
+        calls_per_equip.append({"equipment_id": eq_id, "equipment_name": eq.get("name", "?"), "count": len(eq_calls)})
+    calls_per_equip.sort(key=lambda x: x["count"], reverse=True)
+    top_failing = calls_per_equip[:5]
+
     context = {
         "calls_total": len(calls),
         "backlog": sum(1 for c in calls if c["status"] not in ("Concluído", "Cancelado")),
         "equipment_total": len(equipment),
         "unavailable": sum(1 for e in equipment if e.get("state") == "Indisponível"),
-        "completion_rate": round(sum(1 for o in orders if o["status"] == "Concluída") / len(orders) * 100, 1) if orders else 0,
-        "mttr": round(sum(durations) / len(durations), 1) if durations else 0,
+        "completion_rate": completion_rate,
+        "mttr": mttr,
+        "mtbf": mtbf,
+        "availability": availability,
+        "avg_lead_time": avg_lead_time,
+        "calls_per_equipment": calls_per_equip,
+        "top_failing": top_failing,
     }
     return page(request, "indicadores/lista.html", role="administrator", context=context)
+
+
+# --------------------------------------------------
+# Auditoria
+# --------------------------------------------------
+
+@app.get("/auditoria")
+async def auditoria(request: Request):
+    entries = db.client.table("audit_logs").select("*").order("created_at", desc=True).limit(200).execute().data
+    # Enriquecer com nome do ator.
+    actor_ids = {e.get("actor_id") for e in entries if e.get("actor_id")}
+    actors = {}
+    if actor_ids:
+        rows = db.client.table(U).select("id,name").in_("id", list(actor_ids)).execute().data
+        actors = {r["id"]: r for r in rows}
+    for e in entries:
+        e["actor"] = actors.get(e.get("actor_id"))
+    return page(request, "auditoria/lista.html", role="administrator", context={"entries": entries})
 
 
 # --------------------------------------------------
@@ -763,6 +928,7 @@ async def salvar_preferencias(
         db.client.table(US).update({"unit_name": unit_name.strip(), "timezone_name": timezone_name, "notify_admin_new_call": notify_admin_new_call}).eq("id", 1).execute()
     else:
         db.client.table(US).insert({"id": 1, "unit_name": unit_name.strip(), "timezone_name": timezone_name, "notify_admin_new_call": notify_admin_new_call}).execute()
+    log_audit(user["id"], "updated", "unit_settings", 1, "Atualizou as preferências da unidade pela web.")
     return RedirectResponse("/configuracoes?notice=Preferências%20salvas.", status_code=303)
 
 
@@ -776,14 +942,15 @@ async def web_create_user(
     if not user or user["role"] != "administrator":
         raise HTTPException(403, "Apenas administradores podem cadastrar usuários.")
     email = email.strip().lower()
-    if (role not in {"professor", "administrator"} or len(password) < 12 or
+    if (role not in {"professor", "tecnico", "administrator"} or len(password) < 12 or
             len(name.strip()) < 2 or len(name.strip()) > 120 or
             not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email)):
-        return RedirectResponse("/configuracoes?notice=Selecione%20um%20dos%20dois%20perfis%20e%20use%20senha%20com%20ao%20menos%2012%20caracteres.", status_code=303)
+        return RedirectResponse("/configuracoes?notice=Selecione%20um%20dos%20perfis%20válidos%20e%20use%20senha%20com%20ao%20menos%2012%20caracteres.", status_code=303)
     resp = db.client.table(U).select("id").eq("email", email).execute()
     if resp.data:
         return RedirectResponse("/configuracoes?notice=Já%20existe%20uma%20conta%20com%20esse%20e-mail.", status_code=303)
     db.client.table(U).insert({"name": name.strip(), "email": email, "password_hash": hash_password(password), "role": role}).execute()
+    log_audit(user["id"], "created", "user", None, f"Cadastrou o usuário {email} pela web.")
     return RedirectResponse("/configuracoes?notice=Usuário%20cadastrado.", status_code=303)
 
 
@@ -799,6 +966,7 @@ async def web_create_sector(request: Request, name: str = Form(...), csrf_token:
     if existing.data:
         return RedirectResponse("/configuracoes?notice=Esse%20setor%20já%20existe.", status_code=303)
     db.client.table(S).insert({"name": name.strip()}).execute()
+    log_audit(user["id"], "created", "sector", None, f"Cadastrou o setor {name.strip()} pela web.")
     return RedirectResponse("/configuracoes?notice=Setor%20cadastrado.", status_code=303)
 
 
@@ -808,14 +976,15 @@ async def web_delete_sector(request: Request, sector_id: int, csrf_token: str = 
     user = request.session.get("user")
     if not user or user["role"] != "administrator":
         raise HTTPException(403, "Apenas administradores podem excluir setores.")
-    resp = db.client.table(S).select("*").eq("id", sector_id).execute()
-    sector = resp.data[0] if resp.data else None
+    sec_resp = db.client.table(S).select("*").eq("id", sector_id).execute()
+    sector = sec_resp.data[0] if sec_resp.data else None
     if not sector:
         raise HTTPException(404, "Setor não encontrado.")
-    equipamentos = db.client.table(E).select("id").eq("sector_id", sector_id).execute().data
-    if equipamentos:
+    equip = db.client.table(E).select("id").eq("sector_id", sector_id).execute()
+    if equip.data:
         return RedirectResponse("/configuracoes?notice=Não%20é%20possível%20excluir%20um%20setor%20com%20equipamentos.", status_code=303)
     db.client.table(S).delete().eq("id", sector_id).execute()
+    log_audit(user["id"], "deleted", "sector", sector_id, f"Excluiu o setor {sector['name']}.")
     return RedirectResponse("/configuracoes?notice=Setor%20excluído.", status_code=303)
 
 
@@ -827,7 +996,7 @@ async def web_update_user(
     admin = request.session.get("user")
     if not admin or admin["role"] != "administrator":
         raise HTTPException(403, "Apenas administradores podem gerenciar usuários.")
-    if role not in {"professor", "administrator"} or (new_password and len(new_password) < 12):
+    if role not in {"professor", "tecnico", "administrator"} or (new_password and len(new_password) < 12):
         return RedirectResponse("/configuracoes?notice=Perfil%20ou%20senha%20inválidos.", status_code=303)
     if user_id == admin["id"] and role != "administrator":
         return RedirectResponse("/configuracoes?notice=Não%20é%20possível%20remover%20o%20próprio%20perfil%20de%20administrador.", status_code=303)
@@ -839,6 +1008,7 @@ async def web_update_user(
     if new_password:
         update["password_hash"] = hash_password(new_password)
     db.client.table(U).update(update).eq("id", user_id).execute()
+    log_audit(admin["id"], "updated", "user", user_id, f"Atualizou o perfil de {account['email']}." + (" Redefiniu a senha." if new_password else ""))
     return RedirectResponse("/configuracoes?notice=Usuário%20atualizado.", status_code=303)
 
 
@@ -855,4 +1025,5 @@ async def web_set_user_active(request: Request, user_id: int, active: bool = For
     if user_id == admin["id"] and not active:
         raise HTTPException(400, "Não é possível desativar a própria conta.")
     db.client.table(U).update({"is_active": active}).eq("id", user_id).execute()
+    log_audit(admin["id"], "activated" if active else "deactivated", "user", user_id, f"{'Ativou' if active else 'Desativou'} o usuário {account['email']}.")
     return RedirectResponse("/configuracoes?notice=Status%20do%20usuário%20atualizado.", status_code=303)
