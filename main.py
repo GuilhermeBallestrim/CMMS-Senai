@@ -1243,15 +1243,24 @@ async def ler_notificacao(request: Request, notification_id: int, csrf_token: st
 # --------------------------------------------------
 
 @app.get("/configuracoes")
-async def configuracoes(request: Request):
+async def configuracoes(request: Request, user_search: str | None = None, sector_search: str | None = None):
     users = db.client.table(U).select("*").order("name").execute().data
+    if user_search:
+        term = user_search.strip().lower()
+        users = [u for u in users if term in u["name"].lower() or term in u["email"].lower()]
     sectors = db.client.table(S).select("*").order("name").execute().data
+    if sector_search:
+        term = sector_search.strip().lower()
+        sectors = [s for s in sectors if term in s["name"].lower()]
     preferences = _unit_preferences()
     equip = db.client.table(E).select("id,sector_id").execute().data
     counts = {}
     for e in equip:
         counts[e["sector_id"]] = counts.get(e["sector_id"], 0) + 1
-    return page(request, "configuracoes/lista.html", role="administrator", context={"users": users, "sectors": sectors, "equipment_counts": counts, "preferences": preferences})
+    return page(request, "configuracoes/lista.html", role="administrator", context={
+        "users": users, "sectors": sectors, "equipment_counts": counts, "preferences": preferences,
+        "user_search": user_search or "", "sector_search": sector_search or "",
+    })
 
 
 @app.post("/configuracoes/preferencias")
