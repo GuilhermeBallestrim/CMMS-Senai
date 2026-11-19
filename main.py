@@ -1478,3 +1478,25 @@ async def web_set_user_active(request: Request, user_id: int, active: bool = For
     db.client.table(U).update({"is_active": active}).eq("id", user_id).execute()
     log_audit(admin["id"], "activated" if active else "deactivated", "user", user_id, f"{'Ativou' if active else 'Desativou'} o usuário {account['email']}.")
     return RedirectResponse("/configuracoes?notice=Status%20do%20usuário%20atualizado.", status_code=303)
+
+
+@app.post("/configuracoes/usuarios/{user_id}/excluir")
+async def web_delete_user(request: Request, user_id: int, csrf_token: str = Form(...)):
+    validate_csrf(request, csrf_token)
+    admin = request.session.get("user")
+    if not admin or admin["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem excluir usuários.")
+    if user_id == admin["id"]:
+        raise HTTPException(400, "Não é possível excluir a própria conta.")
+    resp = db.client.table(U).select("*").eq("id", user_id).execute()
+    account = resp.data[0] if resp.data else None
+    if not account:
+        raise HTTPException(404, "Usuário não encontrado.")
+    # Não excluir se for o único administrador ativo
+    if account["role"] == "administrator":
+        admins = db.client.table(U).select("id").eq("role", "administrator").eq("is_active", True).execute().data
+        if len(admins) <= 1:
+            raise HTTPException(400, "Não é possível excluir o único administrador ativo.")
+    db.client.table(U).delete().eq("id", user_id).execute()
+    log_audit(admin["id"], "deleted", "user", user_id, f"Excluiu o usuário {account['email']}.")
+    return RedirectResponse("/configuracoes?notice=Usuário%20excluído.", status_code=303)
