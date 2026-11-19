@@ -1143,8 +1143,18 @@ async def indicadores(request: Request):
 # --------------------------------------------------
 
 @app.get("/auditoria")
-async def auditoria(request: Request):
-    entries = db.client.table("audit_logs").select("*").order("created_at", desc=True).limit(200).execute().data
+async def auditoria(request: Request, page_num: int = 1):
+    PAGE_SIZE = 20
+    page_num = max(page_num, 1)
+    start = (page_num - 1) * PAGE_SIZE
+    entries = (
+        db.client.table("audit_logs")
+        .select("*")
+        .order("created_at", desc=True)
+        .range(start, start + PAGE_SIZE - 1)
+        .execute()
+        .data
+    )
     # Enriquecer com nome do ator.
     actor_ids = {e.get("actor_id") for e in entries if e.get("actor_id")}
     actors = {}
@@ -1153,7 +1163,19 @@ async def auditoria(request: Request):
         actors = {r["id"]: r for r in rows}
     for e in entries:
         e["actor"] = actors.get(e.get("actor_id"))
-    return page(request, "auditoria/lista.html", role="administrator", context={"entries": entries})
+    # Conta total para paginação
+    total_resp = db.client.table("audit_logs").select("id", count="exact").execute()
+    total = total_resp.count or 0
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page_num = min(page_num, total_pages)
+    return page(request, "auditoria/lista.html", role="administrator", context={
+        "entries": entries,
+        "page": page_num,
+        "total_pages": total_pages,
+        "total": total,
+        "has_prev": page_num > 1,
+        "has_next": page_num < total_pages,
+    })
 
 
 # --------------------------------------------------
@@ -1161,12 +1183,35 @@ async def auditoria(request: Request):
 # --------------------------------------------------
 
 @app.get("/notificacoes")
-async def notificacoes(request: Request):
+async def notificacoes(request: Request, page_num: int = 1):
+    PAGE_SIZE = 20
+    page_num = max(page_num, 1)
     user = request.session.get("user")
     items = []
+    total = 0
     if user:
-        items = db.client.table(N).select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute().data
-    return page(request, "notificacoes/lista.html", context={"notifications": items})
+        total_resp = db.client.table(N).select("id", count="exact").eq("user_id", user["id"]).execute()
+        total = total_resp.count or 0
+        start = (page_num - 1) * PAGE_SIZE
+        items = (
+            db.client.table(N)
+            .select("*")
+            .eq("user_id", user["id"])
+            .order("created_at", desc=True)
+            .range(start, start + PAGE_SIZE - 1)
+            .execute()
+            .data
+        )
+    total_pages = max((total + PAGE_SIZE - 1) // PAGE_SIZE, 1)
+    page_num = min(page_num, total_pages)
+    return page(request, "notificacoes/lista.html", context={
+        "notifications": items,
+        "page": page_num,
+        "total_pages": total_pages,
+        "total": total,
+        "has_prev": page_num > 1,
+        "has_next": page_num < total_pages,
+    })
 
 
 @app.post("/notificacoes/ler-todas")
