@@ -131,6 +131,14 @@ create table if not exists audit_logs (
 create index if not exists ix_audit_logs_actor_id on audit_logs (actor_id);
 create index if not exists ix_audit_logs_created_at on audit_logs (created_at);
 
+-- Índices para filtros frequentes em consultas de listagem
+create index if not exists ix_users_role on users (role);
+create index if not exists ix_users_is_active on users (is_active);
+create index if not exists ix_notifications_is_read on notifications (is_read);
+create index if not exists ix_notifications_user_id_is_read on notifications (user_id, is_read);
+create index if not exists ix_work_orders_status_call_id on work_orders (status, call_id);
+create index if not exists ix_equipment_state_sector_id on equipment (state, sector_id);
+
 -- ============================================================
 -- Funções RPC para operações atômicas (§5.1 / §7.3)
 -- ============================================================
