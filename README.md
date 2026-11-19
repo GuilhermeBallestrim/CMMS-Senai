@@ -88,9 +88,9 @@ Chamados, equipamentos, solicitações de compra, ordens de serviço, histórico
 
 Notificações são criadas para chamados, atualizações de ordens e decisões de compras. As preferências da unidade salvam nome, fuso horário e aviso administrativo de novos chamados. Fotos aceitam JPEG, PNG ou WebP (até 10 MB); manuais aceitam PDF (até 20 MB). Os uploads ficam na pasta ignorada `uploads/` e exigem sessão para leitura.
 
-A tela de configurações permite buscar usuários (por nome ou e-mail) e setores (por nome). Notificações e auditoria são paginadas (20 itens por página).
+A tela de configurações permite buscar usuários (por nome ou e-mail) e setores (por nome). Notificações e auditoria são paginadas (20 itens por página). A tela de equipamentos permite buscar por nome ou patrimônio. A tela de histórico permite buscar equipamento por nome ou patrimônio. As listas de chamados, ordens de serviço e equipamentos usam paginação com range de páginas.
 
-Notificações são criadas para chamados, atualizações de ordens e decisões de compras. As preferências da unidade salvam nome, fuso horário e aviso administrativo de novos chamados. Fotos aceitam JPEG, PNG ou WebP (até 10 MB); manuais aceitam PDF (até 20 MB). Os uploads ficam na pasta ignorada `uploads/` e exigem sessão para leitura.
+O modo escuro está disponível na aba Preferências da tela de configurações (persistido em localStorage).
 
 ## Verificação
 
