@@ -15,3 +15,4 @@ config/firebase-key.json
 
 *.log
 *.zip
+node_modules/
