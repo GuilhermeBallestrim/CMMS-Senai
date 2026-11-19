@@ -30,6 +30,21 @@
     --shadow: 0 1px 3px rgba(16, 24, 40, .04)
 }
 
+[data-theme="dark"] {
+    --color-ink: #f3f4f6;
+    --color-text: #e5e7eb;
+    --color-muted: #9ca3af;
+    --color-line: #374151;
+    --color-canvas: #111827;
+    --color-white: #1f2937;
+    --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+
+body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+}
+
 * {
     box-sizing: border-box
 }

@@ -55,6 +55,27 @@
     </main>
   </div>
   <div class="toast" role="status" aria-live="polite" data-toast data-notice="{{ notice|default('') }}"></div>
+  <script>
+    (function() {
+      const darkKey = 'cmms_theme';
+      const html = document.documentElement;
+      const toggle = document.getElementById('theme-toggle');
+
+      function applyTheme(dark) {
+        html.setAttribute('data-theme', dark ? 'dark' : 'light');
+        try { localStorage.setItem(darkKey, dark ? 'dark' : 'light'); } catch (e) {}
+        if (toggle) toggle.checked = dark;
+      }
+
+      applyTheme(localStorage.getItem(darkKey) === 'dark');
+
+      if (toggle) {
+        toggle.addEventListener('change', function() {
+          applyTheme(toggle.checked);
+        });
+      }
+    })();
+  </script>
   <script src="/static/js/app.js" defer></script>
 </body>
 
