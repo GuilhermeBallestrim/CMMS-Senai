@@ -603,10 +603,13 @@ async def cancelar_chamado(request: Request, call_id: int, csrf_token: str = For
 # --------------------------------------------------
 
 @app.get("/equipamentos")
-async def equipamentos(request: Request, page_num: int = 1):
+async def equipamentos(request: Request, page_num: int = 1, equipment_search: str | None = None):
     PAGE_SIZE = 20
     page_num = max(page_num, 1)
     items = db.client.table(E).select("*").order("name").execute().data
+    if equipment_search:
+        term = equipment_search.strip().lower()
+        items = [e for e in items if term in e["name"].lower() or term in e.get("asset_tag", "").lower()]
     for e in items:
         sec = db.client.table(S).select("*").eq("id", e["sector_id"]).execute().data
         e["_sector"] = sec[0] if sec else None
@@ -621,6 +624,7 @@ async def equipamentos(request: Request, page_num: int = 1):
         "equipment_items": page_items,
         "page": page_num, "total_pages": total_pages, "total": total,
         "has_prev": page_num > 1, "has_next": page_num < total_pages,
+        "equipment_search": equipment_search or "",
     })
 
 
