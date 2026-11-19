@@ -937,10 +937,22 @@ async def salvar_ordem_servico(
 # --------------------------------------------------
 
 @app.get("/historico")
-async def historico(request: Request):
+async def historico(request: Request, equipment_search: str | None = None):
     items = db.client.table(OS).select("*").eq("status", "Concluída").order("finished_at", desc=True).execute().data
+    if equipment_search:
+        term = equipment_search.strip().lower()
+        filtered = []
+        for o in items:
+            call_eq = _order_call_equipment(o)
+            equip = call_eq[1] if call_eq else None
+            if equip and (term in equip.get("name", "").lower() or term in equip.get("asset_tag", "").lower()):
+                filtered.append(o)
+        items = filtered
     items = [_order_snippet(o) for o in items]
-    return page(request, "historico/lista.html", roles=["administrator", "tecnico"], context={"completed_orders": items})
+    return page(request, "historico/lista.html", roles=["administrator", "tecnico"], context={
+        "completed_orders": items,
+        "equipment_search": equipment_search or "",
+    })
 
 
 # --------------------------------------------------
