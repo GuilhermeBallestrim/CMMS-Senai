@@ -168,6 +168,24 @@ class UnitSettingsUpdate(BaseModel):
     notify_admin_new_call: bool = True
 
 
+class EquipmentMaintenanceTypeCreate(BaseModel):
+    equipment_id: int
+    name: str = Field(min_length=2, max_length=120)
+
+
+class EquipmentMaintenanceTypeRead(ORMModel):
+    id: int
+    equipment_id: int
+    name: str
+    is_active: bool
+    created_at: datetime
+
+
+class EquipmentMaintenanceTypeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    is_active: bool | None = None
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)

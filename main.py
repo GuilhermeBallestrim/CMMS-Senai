@@ -19,9 +19,9 @@ from backend.config import settings
 from backend.database import db
 from backend.dependencies import get_current_user
 from backend.models import (
-    TABLE_EQUIPMENT, TABLE_MAINTENANCE_CALLS, TABLE_NOTIFICATIONS,
-    TABLE_PURCHASE_REQUESTS, TABLE_SECTORS, TABLE_UNIT_SETTINGS,
-    TABLE_USERS, TABLE_WORK_ORDERS,
+    TABLE_EQUIPMENT, TABLE_EQUIPMENT_MAINTENANCE_TYPES, TABLE_MAINTENANCE_CALLS,
+    TABLE_NOTIFICATIONS, TABLE_PURCHASE_REQUESTS, TABLE_SECTORS,
+    TABLE_UNIT_SETTINGS, TABLE_USERS, TABLE_WORK_ORDERS,
 )
 from backend.security import hash_password, verify_password
 from backend.services import log_audit, notify_administrators, notify_user
@@ -1284,6 +1284,89 @@ async def web_delete_sector(request: Request, sector_id: int, csrf_token: str = 
     db.client.table(S).delete().eq("id", sector_id).execute()
     log_audit(user["id"], "deleted", "sector", sector_id, f"Excluiu o setor {sector['name']}.")
     return RedirectResponse("/configuracoes?notice=Setor%20excluído.", status_code=303)
+
+
+# --------------------------------------------------
+# Tipos de manutenção por equipamento
+# --------------------------------------------------
+
+@app.get("/configuracoes/tipos-manutencao")
+async def tipos_manutencao(request: Request):
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        return RedirectResponse("/dashboard?notice=Acesso%20restrito.", status_code=303)
+
+    equipments = db.client.table(E).select("id, name, asset_tag").order("name").execute().data
+    types = db.client.table(EMT).select("*").order("name").execute().data
+    # Enriquecer com nome do equipamento
+    equip_map = {e["id"]: e for e in equipments}
+    for t in types:
+        e = equip_map.get(t["equipment_id"])
+        t["_equipment_name"] = e["name"] if e else "?"
+        t["_equipment_asset_tag"] = e["asset_tag"] if e else "?"
+
+    return page(request, "configuracoes/tipos_manutencao.html", role="administrator", context={
+        "equipments": equipments,
+        "maintenance_types": types,
+    })
+
+
+@app.post("/configuracoes/tipos-manutencao")
+async def web_create_maintenance_type(
+    request: Request, equipment_id: int = Form(...), name: str = Form(...), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem cadastrar tipos de manutenção.")
+    if not 2 <= len(name.strip()) <= 120:
+        return RedirectResponse("/configuracoes/tipos-manutencao?notice=Nome%20do%20tipo%20inválido.", status_code=303)
+    if not db.client.table(E).select("id").eq("id", equipment_id).execute().data:
+        return RedirectResponse("/configuracoes/tipos-manutencao?notice=Equipamento%20não%20encontrado.", status_code=303)
+    existing = db.client.table(EMT).select("id").eq("equipment_id", equipment_id).eq("name", name.strip()).execute()
+    if existing.data:
+        return RedirectResponse("/configuracoes/tipos-manutencao?notice=Esse%20tipo%20já%20existe%20para%20este%20equipamento.", status_code=303)
+    db.client.table(EMT).insert({"equipment_id": equipment_id, "name": name.strip(), "is_active": True}).execute()
+    log_audit(user["id"], "created", "equipment_maintenance_type", None,
+              f"Cadastrou tipo de manutenção '{name.strip()}' para equipamento {equipment_id}.")
+    return RedirectResponse("/configuracoes/tipos-manutencao?notice=Tipo%20de%20manutenção%20cadastrado.", status_code=303)
+
+
+@app.post("/configuracoes/tipos-manutencao/{type_id}/atualizar")
+async def web_update_maintenance_type(
+    request: Request, type_id: int, name: str = Form(""), is_active: bool = Form(True), csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem atualizar tipos de manutenção.")
+    resp = db.client.table(EMT).select("*").eq("id", type_id).execute()
+    if not resp.data:
+        raise HTTPException(404, "Tipo de manutenção não encontrado.")
+    update = {}
+    if name and len(name.strip()) >= 2:
+        update["name"] = name.strip()
+    update["is_active"] = is_active
+    if update:
+        db.client.table(EMT).update(update).eq("id", type_id).execute()
+    log_audit(user["id"], "updated", "equipment_maintenance_type", type_id, "Atualizou tipo de manutenção de equipamento.")
+    return RedirectResponse("/configuracoes/tipos-manutencao?notice=Tipo%20de%20manutenção%20atualizado.", status_code=303)
+
+
+@app.post("/configuracoes/tipos-manutencao/{type_id}/excluir")
+async def web_delete_maintenance_type(
+    request: Request, type_id: int, csrf_token: str = Form(...),
+):
+    validate_csrf(request, csrf_token)
+    user = request.session.get("user")
+    if not user or user["role"] != "administrator":
+        raise HTTPException(403, "Apenas administradores podem excluir tipos de manutenção.")
+    resp = db.client.table(EMT).select("*").eq("id", type_id).execute()
+    if not resp.data:
+        raise HTTPException(404, "Tipo de manutenção não encontrado.")
+    db.client.table(EMT).delete().eq("id", type_id).execute()
+    log_audit(user["id"], "deleted", "equipment_maintenance_type", type_id, "Excluiu tipo de manutenção de equipamento.")
+    return RedirectResponse("/configuracoes/tipos-manutencao?notice=Tipo%20de%20manutenção%20excluído.", status_code=303)
 
 
 @app.post("/configuracoes/usuarios/{user_id}/atualizar")

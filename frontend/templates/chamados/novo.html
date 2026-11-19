@@ -8,7 +8,7 @@
             <p>Selecione o equipamento e o tipo de manutenção necessária.</p>
             <div class="form-grid">
                 <div class="field field--full"><label for="equipamento">Equipamento <em>*</em></label><select id="equipamento" name="equipment_id" required><option value="">Selecione o equipamento</option>{% for equipment in equipment_items %}<option value="{{ equipment.id }}">{{ equipment.name }} · {{ equipment.asset_tag }}</option>{% endfor %}</select></div>
-                <div class="field field--full"><label for="problema_tipo">Tipo de manutenção <em>*</em></label><select id="problema_tipo" name="problem_type" required><option value="">Selecione primeiro um equipamento</option></select><small>As opções variam de acordo com o equipamento selecionado.</small></div>
+                <div class="field field--full"><label for="problema_tipo">Tipo de manutenção <em>*</em></label><select id="problema_tipo" name="problem_type" required><option value="">Selecione primeiro um equipamento</option><option value="Outro">Outro</option></select><small>As opções variam de acordo com o equipamento selecionado. Escolha "Outro" para informar um tipo não listado.</small></div>
                 <div class="field field--full" id="problema_outro_campo" style="display:none;"><label for="problema_outro">Especificar outro tipo <em>*</em></label><input id="problema_outro" name="problem_other" type="text" placeholder="Descreva o tipo de manutenção"></div>
             </div>
         </div>
@@ -35,31 +35,45 @@
     <aside class="panel form-aside"><span class="form-aside__icon">{{ ui_icon('info', 18) }}</span><h3>O que acontece depois?</h3><p>Seu chamado será encaminhado para a equipe de manutenção. Você poderá acompanhar cada etapa pelo sistema.</p><ol class="steps"><li><i>1</i><span>Chamado registrado</span></li><li><i>2</i><span>Triagem da equipe</span></li><li><i>3</i><span>Atendimento técnico</span></li></ol></aside>
 </form>
 <script>
-// Tipos de manutenção por equipamento (nome do equipamento -> lista de tipos)
-const equipmentMaintenanceTypes = {{ equipment_maintenance_types | tojson }};
+const csrfToken = document.querySelector('input[name="csrf_token"]').value;
 
 const equipSelect = document.getElementById('equipamento');
 const tipoSelect = document.getElementById('problema_tipo');
 const outroCampo = document.getElementById('problema_outro_campo');
 const outroInput = document.getElementById('problema_outro');
 
-function atualizarTipos() {
-    const equipId = equipSelect.value;
-    const equipOption = equipSelect.options[equipSelect.selectedIndex];
-    const equipName = equipOption ? equipOption.text.split(' · ')[0] : '';
-    const tipos = equipmentMaintenanceTypes[equipName] || [];
+async function carregarTipos(equipId) {
+    if (!equipId) {
+        tipoSelect.innerHTML = '<option value="">Selecione o tipo de manutenção</option>';
+        tipoSelect.disabled = true;
+        return;
+    }
 
-    tipoSelect.innerHTML = '<option value="">Selecione o tipo de manutenção</option>';
-    tipos.forEach(function(t) {
-        const opt = document.createElement('option');
-        opt.value = t;
-        opt.textContent = t;
-        tipoSelect.appendChild(opt);
-    });
+    try {
+        const resp = await fetch(`/api/equipment/${equipId}/maintenance-types`, {
+            headers: { 'x-csrf-token': csrfToken },
+        });
+        const tipos = resp.ok ? await resp.json() : [];
+        const nomes = tipos
+            .filter(t => t.is_active !== false)
+            .map(t => t.name);
 
-    if (tipoSelect.options.length > 1) {
+        tipoSelect.innerHTML = '<option value="">Selecione o tipo de manutenção</option>';
+        nomes.forEach(function(t) {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            tipoSelect.appendChild(opt);
+        });
+        // Sempre inclui a opção "Outro" para tipos não listados
+        const optOutro = document.createElement('option');
+        optOutro.value = 'Outro';
+        optOutro.textContent = 'Outro';
+        tipoSelect.appendChild(optOutro);
+
         tipoSelect.disabled = false;
-    } else {
+    } catch (e) {
+        tipoSelect.innerHTML = '<option value="">Erro ao carregar tipos</option>';
         tipoSelect.disabled = true;
     }
 
@@ -77,9 +91,11 @@ tipoSelect.addEventListener('change', function() {
     }
 });
 
-equipSelect.addEventListener('change', atualizarTipos);
+equipSelect.addEventListener('change', function() {
+    carregarTipos(this.value);
+});
 
 // Inicializar com vazio
-atualizarTipos();
+carregarTipos('');
 </script>
 {% endblock %}

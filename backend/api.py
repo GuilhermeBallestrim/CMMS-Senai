@@ -11,11 +11,13 @@ from fastapi.responses import FileResponse
 from backend.database import db
 from backend.dependencies import get_current_user, require_roles
 from backend.models import (
-    TABLE_AUDIT_LOGS, TABLE_EQUIPMENT, TABLE_MAINTENANCE_CALLS, TABLE_NOTIFICATIONS,
-    TABLE_PURCHASE_REQUESTS, TABLE_SECTORS, TABLE_UNIT_SETTINGS, TABLE_USERS, TABLE_WORK_ORDERS,
+    TABLE_AUDIT_LOGS, TABLE_EQUIPMENT, TABLE_EQUIPMENT_MAINTENANCE_TYPES,
+    TABLE_MAINTENANCE_CALLS, TABLE_NOTIFICATIONS, TABLE_PURCHASE_REQUESTS, TABLE_SECTORS,
+    TABLE_UNIT_SETTINGS, TABLE_USERS, TABLE_WORK_ORDERS,
 )
 from backend.schemas import (
     AuditLogRead, CallCreate, CallRead, CallUpdate, EquipmentCreate, EquipmentRead, EquipmentUpdate,
+    EquipmentMaintenanceTypeCreate, EquipmentMaintenanceTypeRead, EquipmentMaintenanceTypeUpdate,
     LoginRequest, NotificationRead, PurchaseCreate, PurchaseDecision, PurchaseRead, SectorCreate,
     SectorRead, UnitSettingsRead, UnitSettingsUpdate, UserCreate, UserRead, WorkOrderAssignment, WorkOrderUpdate,
 )
@@ -374,6 +376,75 @@ def update_equipment(equipment_id: int, payload: EquipmentUpdate, admin: dict = 
         db.client.table(E).update(data).eq("id", equipment_id).execute()
     log_audit(admin["id"], "updated", "equipment", equipment_id, "Atualizou o equipamento pela API.")
     return db.client.table(E).select("*").eq("id", equipment_id).execute().data[0]
+
+
+# --------------------------------------------------
+# Equipment Maintenance Types
+# --------------------------------------------------
+
+EMT = TABLE_EQUIPMENT_MAINTENANCE_TYPES
+
+
+@router.get("/equipment-maintenance-types", response_model=list[EquipmentMaintenanceTypeRead])
+def list_equipment_maintenance_types(
+    _user: dict = Depends(authenticated),
+    equipment_id: int | None = None,
+):
+    q = db.client.table(EMT).select("*").order("name")
+    if equipment_id:
+        q = q.eq("equipment_id", equipment_id)
+    return q.execute().data
+
+
+@router.get("/equipment/{equipment_id}/maintenance-types", response_model=list[EquipmentMaintenanceTypeRead])
+def list_equipment_maintenance_types_by_equipment(equipment_id: int, _user: dict = Depends(authenticated)):
+    if not db.client.table(E).select("id").eq("id", equipment_id).execute().data:
+        raise HTTPException(404, "Equipamento não encontrado.")
+    return (
+        db.client.table(EMT)
+        .select("*")
+        .eq("equipment_id", equipment_id)
+        .order("name")
+        .execute()
+        .data
+    )
+
+
+@router.post("/equipment-maintenance-types", response_model=EquipmentMaintenanceTypeRead, status_code=201, dependencies=[Depends(csrf_header)])
+def create_equipment_maintenance_type(payload: EquipmentMaintenanceTypeCreate, admin: dict = Depends(admin_only)):
+    if not db.client.table(E).select("id").eq("id", payload.equipment_id).execute().data:
+        raise HTTPException(422, "Equipamento não encontrado.")
+    resp = db.client.table(EMT).insert({
+        "equipment_id": payload.equipment_id,
+        "name": payload.name.strip(),
+        "is_active": True,
+    }).execute()
+    if resp.data:
+        log_audit(admin["id"], "created", "equipment_maintenance_type", resp.data[0]["id"],
+                  f"Cadastrou tipo de manutenção '{payload.name.strip()}' para equipamento {payload.equipment_id}.")
+    return resp.data[0]
+
+
+@router.patch("/equipment-maintenance-types/{type_id}", response_model=EquipmentMaintenanceTypeRead, dependencies=[Depends(csrf_header)])
+def update_equipment_maintenance_type(type_id: int, payload: EquipmentMaintenanceTypeUpdate, admin: dict = Depends(admin_only)):
+    resp = db.client.table(EMT).select("*").eq("id", type_id).execute()
+    if not resp.data:
+        raise HTTPException(404, "Tipo de manutenção não encontrado.")
+    data = payload.model_dump(exclude_unset=True)
+    if data:
+        db.client.table(EMT).update(data).eq("id", type_id).execute()
+    log_audit(admin["id"], "updated", "equipment_maintenance_type", type_id, "Atualizou tipo de manutenção de equipamento.")
+    return db.client.table(EMT).select("*").eq("id", type_id).execute().data[0]
+
+
+@router.delete("/equipment-maintenance-types/{type_id}", status_code=204, dependencies=[Depends(csrf_header)])
+def delete_equipment_maintenance_type(type_id: int, admin: dict = Depends(admin_only)):
+    resp = db.client.table(EMT).select("*").eq("id", type_id).execute()
+    if not resp.data:
+        raise HTTPException(404, "Tipo de manutenção não encontrado.")
+    db.client.table(EMT).delete().eq("id", type_id).execute()
+    log_audit(admin["id"], "deleted", "equipment_maintenance_type", type_id, "Excluiu tipo de manutenção de equipamento.")
+    return None
 
 
 # --------------------------------------------------

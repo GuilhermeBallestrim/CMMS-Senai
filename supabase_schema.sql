@@ -229,3 +229,30 @@ alter table maintenance_calls add column if not exists problem_other text;
 alter table maintenance_calls add column if not exists noise_vibration boolean default false;
 alter table maintenance_calls add column if not exists overheating boolean default false;
 alter table maintenance_calls add column if not exists other_symptoms text;
+
+-- Tabela de tipos de manutenção por equipamento (cadastro administrativo)
+create table if not exists equipment_maintenance_types (
+    id              serial primary key,
+    equipment_id    integer not null references equipment (id) on delete cascade,
+    name            varchar(120) not null,
+    is_active       boolean not null default true,
+    created_at      timestamp with time zone not null default now(),
+    unique (equipment_id, name)
+);
+
+create index if not exists ix_equipment_maintenance_types_equipment_id on equipment_maintenance_types (equipment_id);
+create index if not exists ix_equipment_maintenance_types_active on equipment_maintenance_types (is_active);
+
+-- Popula tipos iniciais com base nos tipos hardcoded do sistema (opcional: execute para migrar os existentes)
+-- insert into equipment_maintenance_types (equipment_id, name, is_active)
+-- select e.id, t.name, true
+-- from equipment e
+-- cross join (values
+--   ('Manutenção preventiva geral'),
+--   ('Inspeção/troca de correias'),
+--   ('Inspeção/troca de engrenagens'),
+--   ('Manutenção de motor'),
+--   ('Manutenção de sistema de refrigeração'),
+--   ('Inspeção de dispositivos de segurança')
+-- ) as t(name)
+-- on conflict (equipment_id, name) do nothing;

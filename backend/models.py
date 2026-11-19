@@ -10,6 +10,7 @@ TABLE_PURCHASE_REQUESTS = "purchase_requests"
 TABLE_NOTIFICATIONS = "notifications"
 TABLE_UNIT_SETTINGS = "unit_settings"
 TABLE_AUDIT_LOGS = "audit_logs"
+TABLE_EQUIPMENT_MAINTENANCE_TYPES = "equipment_maintenance_types"
 
 VALID_ROLES = ("professor", "tecnico", "administrator")
 VALID_CALL_STATUSES = ("Aberto", "Em análise", "Em manutenção", "Aguardando peça", "Concluído", "Cancelado")
