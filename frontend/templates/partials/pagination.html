@@ -1,0 +1,37 @@
+{% macro render_pagination(base_url, page, total_pages, total, item_label) -%}
+{% if total_pages > 1 %}
+<div class="table-footer"><span>Página {{ page }} de {{ total_pages }} · {{ total }} {{ item_label }}</span>
+{% set range_start = 1 %}
+{% set range_end = total_pages %}
+{% if total_pages > 7 %}
+  {% if page <= 4 %}
+    {% set range_end = 5 %}
+  {% elif page >= total_pages - 3 %}
+    {% set range_start = total_pages - 4 %}
+  {% else %}
+    {% set range_start = page - 2 %}
+    {% set range_end = page + 2 %}
+  {% endif %}
+{% endif %}
+<nav class="pagination">
+  {% if has_prev %}
+    <a class="button button--secondary" href="{{ base_url }}?page={{ page-1 }}">Anterior</a>
+  {% endif %}
+  {% if range_start > 1 %}
+    <a class="button button--secondary" href="{{ base_url }}?page=1">1</a>
+    {% if range_start > 2 %}<span class="pagination__ellipsis">...</span>{% endif %}
+  {% endif %}
+  {% for p in range(range_start, range_end + 1) %}
+    <a class="button button--secondary {% if p == page %}pagination__item--active{% endif %}" href="{{ base_url }}?page={{ p }}">{{ p }}</a>
+  {% endfor %}
+  {% if range_end < total_pages %}
+    {% if range_end < total_pages - 1 %}<span class="pagination__ellipsis">...</span>{% endif %}
+    <a class="button button--secondary" href="{{ base_url }}?page={{ total_pages }}">{{ total_pages }}</a>
+  {% endif %}
+  {% if has_next %}
+    <a class="button button--secondary" href="{{ base_url }}?page={{ page+1 }}">Próxima</a>
+  {% endif %}
+</nav>
+</div>
+{% endif %}
+{%- endmacro %}
