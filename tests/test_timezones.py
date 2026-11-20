@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import unittest
 
-from main import format_local_datetime
+from web.common import format_local_datetime
 
 
 class TimezoneFormattingTests(unittest.TestCase):

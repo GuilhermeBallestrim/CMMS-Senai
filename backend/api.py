@@ -22,8 +22,18 @@ from backend.schemas import (
     SectorRead, UnitSettingsRead, UnitSettingsUpdate, UserCreate, UserRead, WorkOrderAssignment, WorkOrderUpdate,
 )
 from backend.security import hash_password, verify_password
-from backend.services import log_audit, notify_administrators, notify_user
+from backend.services import (
+    approve_call as service_approve_call,
+    conclude_work_order,
+    log_audit,
+    make_number,
+    notify_administrators,
+    notify_user,
+    update_work_order_diagnostic,
+    update_work_order_status,
+)
 from backend.storage import file_path, save_image, save_pdf
+from backend.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/api")
 admin_only = require_roles("administrator")
@@ -39,10 +49,6 @@ def check_csrf(request: Request, supplied: str | None) -> None:
 
 async def csrf_header(request: Request) -> None:
     check_csrf(request, request.headers.get("x-csrf-token"))
-
-
-def make_number(prefix: str) -> str:
-    return f"{prefix}-{datetime.now(timezone.utc):%Y}-{uuid4().hex[:6].upper()}"
 
 
 def get_or_create_unit_settings() -> dict:
@@ -174,7 +180,7 @@ def get_call_photo(call_id: int, user: dict = Depends(authenticated)):
 
 
 @router.get("/equipment/{equipment_id}/photo")
-def get_equipment_photo(_user: dict = Depends(authenticated)):
+def get_equipment_photo(equipment_id: int, _user: dict = Depends(authenticated)):
     resp = db.client.table(E).select("*").eq("id", equipment_id).execute()
     if not resp.data or not resp.data[0].get("photo_name"):
         raise HTTPException(404, "Foto não encontrada.")
@@ -183,7 +189,7 @@ def get_equipment_photo(_user: dict = Depends(authenticated)):
 
 
 @router.get("/equipment/{equipment_id}/manual")
-def get_equipment_manual(_user: dict = Depends(authenticated)):
+def get_equipment_manual(equipment_id: int, _user: dict = Depends(authenticated)):
     resp = db.client.table(E).select("*").eq("id", equipment_id).execute()
     if not resp.data or not resp.data[0].get("manual_name"):
         raise HTTPException(404, "Manual não encontrado.")
@@ -212,6 +218,8 @@ def csrf_token(request: Request):
 @router.post("/auth/login", response_model=UserRead)
 def api_login(payload: LoginRequest, request: Request):
     email = str(payload.email).strip().lower()
+    if not check_rate_limit(f"login:{email}"):
+        raise HTTPException(status_code=429, detail="Muitas tentativas. Tente novamente em instantes.")
     resp = db.client.table(U).select("*").eq("email", email).execute()
     user = resp.data[0] if resp.data else None
     stored = user["password_hash"] if user else DUMMY_PASSWORD_HASH
@@ -312,7 +320,9 @@ def list_equipment(
     if state:
         q = q.eq("state", state)
     if search:
-        q = q.or_(f"name.ilike.%{search}%,asset_tag.ilike.%{search}%")
+        safe = "".join(ch for ch in search.strip() if ch.isalnum() or ch in " -_./")
+        if safe:
+            q = q.or_(f"name.ilike.%{safe}%,asset_tag.ilike.%{safe}%")
     return q.range(offset, offset + limit - 1).execute().data
 
 
@@ -533,38 +543,7 @@ def update_call(call_id: int, payload: CallUpdate, user: dict = Depends(authenti
 
 @router.post("/calls/{call_id}/approve", status_code=201, dependencies=[Depends(csrf_header)])
 def approve_call(call_id: int, admin: dict = Depends(admin_only)):
-    resp = db.client.table(C).select("*").eq("id", call_id).execute()
-    if not resp.data:
-        raise HTTPException(404, "Chamado não encontrado.")
-    call = resp.data[0]
-    if call["status"] == "Cancelado":
-        raise HTTPException(409, "Chamados cancelados não podem gerar ordem de serviço.")
-    number = make_number("OS")
-    # Tenta operação atômica via RPC (§7.3). Se a função não existir, fallback sequencial.
-    try:
-        rpc = db.client.rpc("approve_call_atomic", {"p_call_id": call_id, "p_admin_id": admin["id"], "p_number": number}).execute()
-        order_data = rpc.data if isinstance(rpc.data, dict) else (rpc.data[0] if rpc.data else None)
-        if isinstance(order_data, str):
-            import json as _json
-            order_data = _json.loads(order_data)
-        order_id = order_data["id"]
-        order_number = order_data["number"]
-        order_status = order_data["status"]
-    except Exception:
-        # Fallback sequencial (sem atomicidade) para ambientes sem a função RPC.
-        wo = db.client.table(OS).select("*").eq("call_id", call_id).execute()
-        if wo.data:
-            w = wo.data[0]
-            return {"id": w["id"], "number": w["number"], "status": w["status"]}
-        created = db.client.table(OS).insert({
-            "number": number, "call_id": call_id, "responsible_id": admin["id"], "status": "Aguardando início",
-        }).execute()
-        order = created.data[0]
-        order_id, order_number, order_status = order["id"], order["number"], order["status"]
-        db.client.table(C).update({"status": "Em análise", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call_id).execute()
-    notify_user(call["requester_id"], "Chamado aprovado", f"{call['number']} gerou a ordem {order_number}.", f"/chamados/detalhe?id={call_id}")
-    log_audit(admin["id"], "approved", "maintenance_call", call_id, f"Aprovou {call['number']} e gerou {order_number} pela API.")
-    return {"id": order_id, "number": order_number, "status": order_status}
+    return service_approve_call(call_id, admin["id"])
 
 
 @router.post("/calls/{call_id}/atribuicoes", status_code=201, dependencies=[Depends(csrf_header)])
@@ -668,51 +647,29 @@ def update_work_order(order_id: int, payload: WorkOrderUpdate, user: dict = Depe
         if not db.client.table(U).select("id").eq("id", update["responsible_id"]).eq("is_active", True).execute().data:
             raise HTTPException(422, "Responsável não encontrado ou inativo.")
 
-    call, equip = _call_equipment(order.get("call_id"))
-
     if status_changed:
-        if new_status == "Em execução" and not order.get("started_at"):
-            update["started_at"] = datetime.now(timezone.utc).isoformat()
         if new_status == "Concluída":
             solution = (update.get("solution") or order.get("solution") or "").strip()
-            # Tenta operação atômica via RPC (§7.3).
-            rpc_ok = False
-            try:
-                db.client.rpc("conclude_order_atomic", {"p_order_id": order_id, "p_solution": solution}).execute()
-                rpc_ok = True
-            except Exception:
-                rpc_ok = False
-            if rpc_ok:
-                # Remove campos já tratados pela RPC do update restante.
-                update.pop("status", None)
-                update.pop("solution", None)
-                update.pop("finished_at", None)
-            else:
-                update["finished_at"] = datetime.now(timezone.utc).isoformat()
-                if call:
-                    db.client.table(C).update({"status": "Concluído", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call["id"]).execute()
-                    if equip:
-                        db.client.table(E).update({"state": "Disponível"}).eq("id", equip["id"]).execute()
-        elif new_status == "Aguardando peça":
-            if call:
-                db.client.table(C).update({"status": "Aguardando peça", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call["id"]).execute()
-                if equip:
-                    db.client.table(E).update({"state": "Em manutenção"}).eq("id", equip["id"]).execute()
+            conclude_work_order(order_id, solution, user["id"])
         else:
-            if call:
-                db.client.table(C).update({"status": "Em manutenção", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", call["id"]).execute()
-                if equip:
-                    db.client.table(E).update({"state": "Em manutenção"}).eq("id", equip["id"]).execute()
+            update_work_order_status(order_id, new_status, user["id"], user["role"])
 
-    # Se a RPC concluiu, garante que o status persistido reflita a conclusão.
-    if status_changed and new_status == "Concluída":
-        update.setdefault("status", "Concluída")
+    # Atualiza campos de diagnóstico quando fornecidos.
+    diagnostic_fields = {"defect", "cause", "solution", "parts", "notes"}
+    diag_payload = {k: update.get(k) for k in diagnostic_fields if k in update}
+    if diag_payload:
+        update_work_order_diagnostic(order_id, diag_payload, user["id"], user["role"])
+
+    # Remove campos de diagnóstico do update restante (já tratados pelo serviço).
+    for k in diagnostic_fields:
+        update.pop(k, None)
+
+    # Se o status foi alterado, já foi persistido pelo serviço; não repete aqui.
+    if "status" in update:
+        update.pop("status", None)
     if update:
         db.client.table(OS).update(update).eq("id", order_id).execute()
 
-    if call:
-        notify_user(call["requester_id"], "Ordem de serviço atualizada", f"{order['number']}: {new_status}.", f"/chamados/detalhe?id={call['id']}")
-    log_audit(user["id"], "updated", "work_order", order_id, f"Atualizou {order['number']} para {new_status} pela API.")
     return db.client.table(OS).select("*").eq("id", order_id).execute().data[0]
 
 

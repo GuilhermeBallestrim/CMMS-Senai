@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 from uuid import uuid4
@@ -27,7 +28,7 @@ async def save_image(upload: UploadFile | None, category: str) -> tuple[str | No
         suffix, mime = ".webp", "image/webp"
     else:
         raise HTTPException(415, "Formato de imagem inválido. Envie JPEG, PNG ou WebP.")
-    return _write(category, suffix, data), mime
+    return await _write(category, suffix, data), mime
 
 
 async def save_pdf(upload: UploadFile | None, category: str) -> tuple[str | None, str | None]:
@@ -38,16 +39,16 @@ async def save_pdf(upload: UploadFile | None, category: str) -> tuple[str | None
         raise HTTPException(413, "O manual excede o limite de 20 MB.")
     if not data.startswith(b"%PDF-"):
         raise HTTPException(415, "O manual enviado não é um PDF válido.")
-    return _write(category, ".pdf", data), "application/pdf"
+    return await _write(category, ".pdf", data), "application/pdf"
 
 
-def _write(category: str, suffix: str, data: bytes) -> str:
+async def _write(category: str, suffix: str, data: bytes) -> str:
     if category not in {"calls", "equipment"}:
         raise ValueError("Categoria de arquivo inválida.")
     directory = UPLOAD_DIR / category
-    directory.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(directory.mkdir, parents=True, exist_ok=True)
     filename = f"{uuid4().hex}{suffix}"
-    (directory / filename).write_bytes(data)
+    await asyncio.to_thread((directory / filename).write_bytes, data)
     return filename
 
 

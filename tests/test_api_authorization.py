@@ -254,5 +254,12 @@ class AuthorizationRouteTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 403, resp.text)
 
 
+    def test_equipment_photo_endpoint_nao_quebra(self):
+        self.rows["equipment"] = [{"id": 1, "name": "Eq", "photo_name": None}]
+        self._as(self.admin)
+        resp = self.client.get("/api/equipment/1/photo")
+        self.assertIn(resp.status_code, (404, 200), resp.text)
+
+
 if __name__ == "__main__":
     unittest.main()

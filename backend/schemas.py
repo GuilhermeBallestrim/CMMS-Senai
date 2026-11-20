@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
+from datetime import date
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 Role = Literal["professor", "tecnico", "administrator"]
@@ -46,6 +47,17 @@ class EquipmentCreate(BaseModel):
     acquired_at: str | None = None
     state: Literal["Disponível", "Em manutenção", "Indisponível"] = "Disponível"
     responsible_id: int | None = None
+
+    @field_validator("acquired_at")
+    @classmethod
+    def validate_acquired_at(cls, value):
+        if value is None or value == "":
+            return None
+        try:
+            date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError("Data de aquisição inválida (use AAAA-MM-DD).") from exc
+        return value
 
 
 class EquipmentRead(ORMModel):
@@ -124,6 +136,11 @@ class WorkOrderUpdate(BaseModel):
     status: Literal["Em execução", "Aguardando peça", "Concluída"] | None = None
     started_at: datetime | None = None
     responsible_id: int | None = None
+    defect: str | None = Field(default=None, max_length=5000)
+    cause: str | None = Field(default=None, max_length=5000)
+    solution: str | None = Field(default=None, max_length=5000)
+    parts: str | None = Field(default=None, max_length=2000)
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class WorkOrderAssignment(BaseModel):
